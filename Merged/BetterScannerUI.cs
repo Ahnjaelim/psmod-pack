@@ -41,6 +41,7 @@ namespace BetterScannerUI
         private const string ContainerName = "BSUI_Bars";
         private static readonly Color TrackColor = new Color(1f, 1f, 1f, 0.12f);
         private static readonly Color FallbackFill = new Color32(0x67, 0xaa, 0xa5, 0xff);
+        private const string AmountColor = "#9a95a8";
 
         private struct Entry
         {
@@ -110,13 +111,16 @@ namespace BetterScannerUI
             float width = rt.rect.width;
             float gap = tmp.fontSize * 0.6f;
 
+            // 오른쪽 열: 흐린 양(원본과 같은 uL / mL / L 표기) + 퍼센트. 예) "27.00 mL  6.12%"
             var pctStrings = new string[entries.Count];
             float nameCol = 0f;
-            float pctCol = tmp.GetPreferredValues("100.00%").x;
+            float pctCol = 0f;
             for (int i = 0; i < entries.Count; i++)
             {
-                pctStrings[i] = entries[i].Pct.ToString("F2", CultureInfo.InvariantCulture) + "%";
+                pctStrings[i] = "<color=" + AmountColor + ">" + WaterScannerUIManager.FormatAmount(entries[i].Amount) + "</color>  "
+                    + entries[i].Pct.ToString("F2", CultureInfo.InvariantCulture) + "%";
                 nameCol = Mathf.Max(nameCol, tmp.GetPreferredValues(entries[i].Name).x);
+                pctCol = Mathf.Max(pctCol, tmp.GetPreferredValues(pctStrings[i]).x);
             }
 
             if (width > 0f) nameCol = Mathf.Min(nameCol, width * 0.45f);
