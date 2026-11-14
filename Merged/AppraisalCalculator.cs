@@ -160,6 +160,7 @@ namespace AppraisalPresets
                 Section sec = typeId != null && Sections.TryGetValue(typeId, out Section found) ? found : null;
                 if (sec == null)
                 {
+                    if (_panel.activeSelf || _active != null) RestoreLayout();
                     _panel.SetActive(false);
                     _active = null;
                     return;
@@ -173,13 +174,89 @@ namespace AppraisalPresets
                     foreach (Opt o in sec.Opts) if (o.Toggle != null) o.Toggle.SetIsOnWithoutNotify(false);
                     _syncing = false;
                     ShowResult(sec, apply: false);
+                    FitLayout();
                 }
             }
             catch (Exception ex)
             {
                 _failed = true;
                 Debug.LogWarning("[AppraisalCalculator] disabled: " + ex.Message);
+                try { RestoreLayout(); } catch { }
                 if (_panel != null) _panel.SetActive(false);
+            }
+        }
+
+        // ── 감정 창 늘리기 ──
+        // 감정 창에는 자동 레이아웃이 없어서 블록이 "감정가 보내기" 버튼을 덮는다.
+        // 블록 높이만큼 창을 아래로 늘리고(위쪽 모서리는 고정), 보내기 버튼을 블록 바로 밑으로 옮긴다.
+        private static RectTransform _panelRt, _sendRt;
+        private static Vector2 _panelSize0, _panelPos0, _sendPos0;
+        private static bool _layoutSaved;
+
+        private static void SaveLayout(InspectionUIManager ui)
+        {
+            _panelRt = (RectTransform)ui.appraisalPanel.transform;
+            _sendRt = null;
+            foreach (Button b in ui.appraisalPanel.GetComponentsInChildren<Button>(true))
+            {
+                for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
+                {
+                    if (b.onClick.GetPersistentMethodName(i) == "OnAppraisalServiceEstimated")
+                    {
+                        _sendRt = (RectTransform)b.transform;
+                        break;
+                    }
+                }
+                if (_sendRt != null) break;
+            }
+            _panelSize0 = _panelRt.sizeDelta;
+            _panelPos0 = _panelRt.anchoredPosition;
+            if (_sendRt != null) _sendPos0 = _sendRt.anchoredPosition;
+            _layoutSaved = true;
+        }
+
+        private static void RestoreLayout()
+        {
+            if (!_layoutSaved) return;
+            if (_panelRt != null)
+            {
+                _panelRt.sizeDelta = _panelSize0;
+                _panelRt.anchoredPosition = _panelPos0;
+            }
+            if (_sendRt != null) _sendRt.anchoredPosition = _sendPos0;
+        }
+
+        private static void FitLayout()
+        {
+            if (!_layoutSaved || _panelRt == null || _panel == null) return;
+            RestoreLayout();
+            var rt = (RectTransform)_panel.transform;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            float h = LayoutUtility.GetPreferredHeight(rt);
+            if (h <= 0f) h = rt.rect.height;
+            float gap = 6f;
+            float d = h + gap;
+
+            // 창 높이 +d, 위쪽 모서리 고정 (피벗만큼 아래로 이동)
+            _panelRt.sizeDelta = _panelSize0 + new Vector2(0f, d);
+            _panelRt.anchoredPosition = _panelPos0 - new Vector2(0f, d * (1f - _panelRt.pivot.y));
+
+            if (_sendRt == null) return;
+            // 보내기 버튼 윗변을 블록 아랫변 - gap 으로 (월드 좌표로 맞춘 뒤 로컬로)
+            Canvas.ForceUpdateCanvases();
+            var blockCorners = new Vector3[4];
+            var sendCorners = new Vector3[4];
+            rt.GetWorldCorners(blockCorners);
+            _sendRt.GetWorldCorners(sendCorners);
+            float scaleY = _panelRt.lossyScale.y != 0f ? _panelRt.lossyScale.y : 1f;
+            float blockBottom = blockCorners[0].y;
+            float sendTop = sendCorners[1].y;
+            float shiftWorld = (blockBottom - gap * scaleY) - sendTop;
+            if (shiftWorld < 0f) // 겹칠 때만 내린다
+            {
+                Vector3 p = _sendRt.position;
+                p.y += shiftWorld;
+                _sendRt.position = p;
             }
         }
 
@@ -291,6 +368,7 @@ namespace AppraisalPresets
                         used = 0f;
                     }
                     t.transform.SetParent(line, false);
+                    o.Toggle = t;
                     used += w + hgap;
                     Section s = sec;
                     Opt opt = o;
@@ -317,6 +395,7 @@ namespace AppraisalPresets
             }
             _panel.AddComponent<GraphicRaycaster>();
 
+            SaveLayout(ui);
             _panel.SetActive(false);
             return true;
         }
