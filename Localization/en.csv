@@ -131,3 +131,5 @@ value_base,Base
 value_vs_base_cheap,{0} cheaper
 value_vs_base_pricey,{0} pricier
 pill_not_owned,Not yours
+appraisal_btn_base,Base {0}
+appraisal_btn_min,Min {0}

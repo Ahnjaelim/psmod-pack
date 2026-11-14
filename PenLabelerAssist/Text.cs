@@ -16,6 +16,8 @@ internal static class Text
 		{ "value_vs_base_cheap", "{0} cheaper" },
 		{ "value_vs_base_pricey", "{0} pricier" },
 		{ "pill_not_owned", "Not yours" },
+		{ "appraisal_btn_base", "Base {0}" },
+		{ "appraisal_btn_min", "Min {0}" },
 		{ "calendar_today_header", "Today's events" },
 		{ "calendar_today_none", "No events today" },
 		{ "calendar_today_until", "until day {0}" },
