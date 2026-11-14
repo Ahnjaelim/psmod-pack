@@ -298,6 +298,8 @@ namespace AppraisalPresets
                     trt.sizeDelta = new Vector2(width, rowH);
                     Toggle t = go.GetComponent<Toggle>();
                     t.group = null;
+                    t.interactable = true;
+                    foreach (Graphic g in go.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = true;
                     t.onValueChanged = new Toggle.ToggleEvent(); // 프리팹의 추궁 이슈 리스너 제거
                     t.SetIsOnWithoutNotify(false);
                     TMP_Text label = go.GetComponentInChildren<TMP_Text>(true);
@@ -316,6 +318,23 @@ namespace AppraisalPresets
                 holder.SetActive(false);
                 Sections[def.type] = sec;
             }
+            // 감정 창 뒤쪽 형제(투명한 클릭 영역 등)가 패널을 덮어서 클릭이 안 먹던 문제:
+            // 자체 Canvas(정렬 덮어쓰기) + GraphicRaycaster 로 맨 위 레이어에서 클릭을 받는다.
+            Canvas parentCanvas = ui.appraisalPanel.GetComponentInParent<Canvas>();
+            Canvas own = _panel.AddComponent<Canvas>();
+            own.overrideSorting = true;
+            if (parentCanvas != null)
+            {
+                Canvas root = parentCanvas.rootCanvas;
+                own.sortingLayerID = root.sortingLayerID;
+                own.sortingOrder = Mathf.Max(parentCanvas.sortingOrder, root.sortingOrder) + 50;
+            }
+            else
+            {
+                own.sortingOrder = 500;
+            }
+            _panel.AddComponent<GraphicRaycaster>();
+
             _panel.SetActive(false);
             return true;
         }
