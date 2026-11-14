@@ -6,13 +6,13 @@ using UnityEngine.UI;
 
 namespace AppraisalPresets
 {
-    // 감정 계산기: 감정 입력 창 오른쪽에 붙는 별도 패널.
+    // 감정 계산기: 감정 입력 창 안, 기본/최저 버튼 줄 밑에 붙는 체크박스 블록 (카테고리별 가로 나열).
     // 플레이어가 직접 보고 판단한 상태를 체크하면 게임의 GetCorrectValue 와 같은 식으로 값을 계산해서
     // 입력 칸에 바로 넣는다 (숨겨진 정답을 읽지 않음).
     //   의수:  AppHandHelper.GetCorrectValue   (기본 100, 최저 50, 세트 보너스 포함)
     //   립위치: RibwichHelper.GetCorrectValue   (기본 150, 최저 40, 개봉/가짜면 40)
     //   플라즈마: PlasmaHelper.GetCorrectValue   (기본 300, 최저 90, 씰 보너스 포함)
-    // 패널은 appraisalPanel 의 자식이라 감정 창이 닫히면 같이 사라진다.
+    // 블록은 appraisalPanel 안에 있어서 감정 창이 닫히면 같이 사라진다.
     internal static class AppraisalCalculator
     {
         private const string PanelName = "PSMP_AppraisalCalc";
@@ -150,13 +150,13 @@ namespace AppraisalPresets
         }
 
         // ── 매 프레임 (UpdateAppraisalPanel postfix) ──
-        internal static void Tick(InspectionUIManager ui, string typeId, bool itemChanged)
+        internal static void Tick(InspectionUIManager ui, string typeId, bool itemChanged, GameObject anchorRow, float refFont)
         {
             if (_failed) return;
             try
             {
                 _ui = ui;
-                if (_panel == null && !Build(ui)) return;
+                if (_panel == null && !Build(ui, anchorRow, refFont)) return;
                 Section sec = typeId != null && Sections.TryGetValue(typeId, out Section found) ? found : null;
                 if (sec == null)
                 {
@@ -210,51 +210,50 @@ namespace AppraisalPresets
             });
         }
 
-        // ── UI 만들기: 게임의 추궁 체크박스(toggle1)를 복제해서 모양을 맞춘다 ──
-        private static bool Build(InspectionUIManager ui)
+        // ── UI 만들기 ──
+        // 감정 창 안, 기본/최저 버튼 줄 바로 밑에 붙인다:
+        //   계산값: N
+        //   [카테고리]
+        //   ㅁ내용 ㅁ내용 ㅁ내용      (가로로 나열, 넘치면 다음 줄)
+        // 체크박스는 게임의 추궁 체크박스(toggle1)를 복제하고, 글자 크기는 게임 +/- 버튼 글자에 맞춘다.
+        private static bool Build(InspectionUIManager ui, GameObject anchorRow, float refFont)
         {
-            if (ui.toggle1 == null)
+            if (ui.toggle1 == null || anchorRow == null)
             {
                 _failed = true;
-                Debug.LogWarning("[AppraisalCalculator] template toggle not found; feature off");
+                Debug.LogWarning("[AppraisalCalculator] template toggle / anchor row not found; feature off");
                 return false;
             }
             _defs = new List<(string, Func<HashSet<string>, int>, Opt[])>();
             Define();
 
-            var panelRt = (RectTransform)ui.appraisalPanel.transform;
-            var templateRt = (RectTransform)ui.toggle1.transform;
+            var rowRt = (RectTransform)anchorRow.transform;
+            var parent = (RectTransform)rowRt.parent;
             TMP_Text templateLabel = ui.toggle1.GetComponentInChildren<TMP_Text>(true);
-            float width = Mathf.Max(templateRt.rect.width, 220f);
-            float rowH = Mathf.Max(templateRt.rect.height, 16f);
+            float font = refFont > 0f ? refFont : (templateLabel != null ? templateLabel.fontSize * 1.4f : 18f);
+            float avail = Mathf.Max(rowRt.rect.width, ((RectTransform)ui.appraisalPanel.transform).rect.width - 24f, 200f);
+            bool parentLayout = parent.GetComponent<LayoutGroup>() != null;
 
-            _panel = new GameObject(PanelName, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(LayoutElement));
-            _panel.GetComponent<LayoutElement>().ignoreLayout = true;
+            _panel = new GameObject(PanelName, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(LayoutElement));
             var rt = (RectTransform)_panel.transform;
-            rt.SetParent(panelRt, false);
-            // 감정 창 오른쪽 위 모서리 바깥에 붙인다
-            rt.anchorMin = new Vector2(1f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot = new Vector2(0f, 1f);
-            rt.anchoredPosition = new Vector2(8f, 0f);
-
-            Image bg = _panel.GetComponent<Image>();
-            Image panelImg = ui.appraisalPanel.GetComponent<Image>();
-            if (panelImg != null && panelImg.sprite != null)
+            rt.SetParent(parent, false);
+            rt.SetSiblingIndex(rowRt.GetSiblingIndex() + 1);
+            var le = _panel.GetComponent<LayoutElement>();
+            if (!parentLayout)
             {
-                bg.sprite = panelImg.sprite;
-                bg.type = panelImg.type;
-                bg.color = panelImg.color;
+                // 레이아웃 그룹이 없으면 버튼 줄 바로 밑 좌표에 직접 놓는다
+                le.ignoreLayout = true;
+                rt.anchorMin = rowRt.anchorMin;
+                rt.anchorMax = rowRt.anchorMin;
+                rt.pivot = new Vector2(0f, 1f);
+                Vector2 rowBottomLeft = rowRt.anchoredPosition + new Vector2(-rowRt.pivot.x * rowRt.rect.width, -rowRt.pivot.y * rowRt.rect.height);
+                rt.anchoredPosition = rowBottomLeft + new Vector2(0f, -4f);
             }
-            else
-            {
-                bg.color = new Color(0.11f, 0.09f, 0.16f, 0.96f);
-            }
-            bg.raycastTarget = true; // 뒤의 게임 화면이 클릭되지 않게
 
             var vlg = _panel.GetComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(10, 10, 8, 10);
+            vlg.padding = new RectOffset(0, 0, 4, 4);
             vlg.spacing = 2f;
+            vlg.childAlignment = TextAnchor.UpperLeft;
             vlg.childControlWidth = false;
             vlg.childControlHeight = false;
             vlg.childForceExpandWidth = false;
@@ -263,53 +262,36 @@ namespace AppraisalPresets
             fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            MakeText(rt, templateLabel, L("calc_title", "Appraisal calculator"), width, rowH, bold: true);
-            _result = MakeText(rt, templateLabel, "", width, rowH, bold: true);
+            float lineH = font * 1.35f;
+            _result = MakeText(rt, templateLabel, "", avail, lineH, font, bold: true);
 
             foreach (var def in _defs)
             {
                 var sec = new Section { TypeId = def.type, Compute = def.fn };
-                var holder = new GameObject("Sec_" + def.type, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-                var hrt = (RectTransform)holder.transform;
-                hrt.SetParent(rt, false);
-                var hv = holder.GetComponent<VerticalLayoutGroup>();
-                hv.spacing = 2f;
-                hv.childControlWidth = false;
-                hv.childControlHeight = false;
-                hv.childForceExpandWidth = false;
-                hv.childForceExpandHeight = false;
-                var hf = holder.GetComponent<ContentSizeFitter>();
-                hf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-                hf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                GameObject holder = MakeStack(rt, "Sec_" + def.type, vertical: true, spacing: 1f);
                 sec.Root = holder;
+                var hrt = (RectTransform)holder.transform;
+                RectTransform line = null;
+                float used = 0f;
+                float hgap = Mathf.Round(font * 0.9f);
 
                 foreach (Opt o in def.opts)
                 {
                     if (o.Group == "#")
                     {
-                        TextMeshProUGUI h = MakeText(hrt, templateLabel, o.Label, width, rowH, bold: false);
-                        h.alpha = 0.7f;
+                        TextMeshProUGUI h = MakeText(hrt, templateLabel, "[" + o.Label + "]", avail, lineH, font * 0.9f, bold: false);
+                        h.alpha = 0.75f;
+                        line = null;
                         continue;
                     }
-                    GameObject go = UnityEngine.Object.Instantiate(ui.toggle1.gameObject, hrt);
-                    go.name = "Opt_" + o.Id;
-                    go.SetActive(true);
-                    var trt = (RectTransform)go.transform;
-                    trt.sizeDelta = new Vector2(width, rowH);
-                    Toggle t = go.GetComponent<Toggle>();
-                    t.group = null;
-                    t.interactable = true;
-                    foreach (Graphic g in go.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = true;
-                    t.onValueChanged = new Toggle.ToggleEvent(); // 프리팹의 추궁 이슈 리스너 제거
-                    t.SetIsOnWithoutNotify(false);
-                    TMP_Text label = go.GetComponentInChildren<TMP_Text>(true);
-                    if (label != null)
+                    Toggle t = MakeToggle(ui, o, font, out float w);
+                    if (line == null || used + w > avail)
                     {
-                        string sign = o.Delta > 0 ? " (+" + o.Delta + ")" : o.Delta < 0 ? " (" + o.Delta + ")" : "";
-                        label.text = o.Label + sign;
-                        label.enableWordWrapping = false;
+                        line = (RectTransform)MakeStack(hrt, "Line", vertical: false, spacing: hgap).transform;
+                        used = 0f;
                     }
-                    o.Toggle = t;
+                    t.transform.SetParent(line, false);
+                    used += w + hgap;
                     Section s = sec;
                     Opt opt = o;
                     t.onValueChanged.AddListener(on => OnToggle(s, opt, on));
@@ -318,8 +300,8 @@ namespace AppraisalPresets
                 holder.SetActive(false);
                 Sections[def.type] = sec;
             }
-            // 감정 창 뒤쪽 형제(투명한 클릭 영역 등)가 패널을 덮어서 클릭이 안 먹던 문제:
-            // 자체 Canvas(정렬 덮어쓰기) + GraphicRaycaster 로 맨 위 레이어에서 클릭을 받는다.
+
+            // 감정 창 형제 요소가 클릭을 가로채지 않게 자체 Canvas 로 맨 위에서 클릭을 받는다 (2.9.1 수정 유지).
             Canvas parentCanvas = ui.appraisalPanel.GetComponentInParent<Canvas>();
             Canvas own = _panel.AddComponent<Canvas>();
             own.overrideSorting = true;
@@ -339,7 +321,76 @@ namespace AppraisalPresets
             return true;
         }
 
-        private static TextMeshProUGUI MakeText(RectTransform parent, TMP_Text template, string text, float width, float height, bool bold)
+        private static Toggle MakeToggle(InspectionUIManager ui, Opt o, float font, out float width)
+        {
+            GameObject go = UnityEngine.Object.Instantiate(ui.toggle1.gameObject);
+            go.name = "Opt_" + o.Id;
+            go.SetActive(true);
+            Toggle t = go.GetComponent<Toggle>();
+            t.group = null;
+            t.interactable = true;
+            t.onValueChanged = new Toggle.ToggleEvent(); // 프리팹의 추궁 이슈 리스너 제거
+            t.SetIsOnWithoutNotify(false);
+            foreach (Graphic g in go.GetComponentsInChildren<Graphic>(true)) g.raycastTarget = true;
+
+            float box = Mathf.Round(font * 0.9f);
+            float gap = Mathf.Round(font * 0.3f);
+            if (go.transform.childCount > 0)
+            {
+                // child(0) = 체크박스 (InspectionUIManager 도 GetChild(1) 을 라벨로 씀)
+                var cb = (RectTransform)go.transform.GetChild(0);
+                cb.anchorMin = new Vector2(0f, 0.5f);
+                cb.anchorMax = new Vector2(0f, 0.5f);
+                cb.pivot = new Vector2(0f, 0.5f);
+                cb.anchoredPosition = Vector2.zero;
+                cb.sizeDelta = new Vector2(box, box);
+            }
+            string sign = o.Delta > 0 ? " +" + o.Delta : o.Delta < 0 ? " " + o.Delta : "";
+            string text = o.Label + sign;
+            float labelW = 0f;
+            TMP_Text label = go.transform.childCount > 1 ? go.transform.GetChild(1).GetComponent<TMP_Text>() : go.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+            {
+                label.enableAutoSizing = false;
+                label.fontSize = font;
+                label.enableWordWrapping = false;
+                label.overflowMode = TextOverflowModes.Overflow;
+                label.alignment = TextAlignmentOptions.MidlineLeft;
+                label.text = text;
+                RectTransform lrt = label.rectTransform;
+                lrt.anchorMin = new Vector2(0f, 0f);
+                lrt.anchorMax = new Vector2(1f, 1f);
+                lrt.pivot = new Vector2(0f, 0.5f);
+                lrt.offsetMin = new Vector2(box + gap, 0f);
+                lrt.offsetMax = Vector2.zero;
+                labelW = label.GetPreferredValues(text).x;
+            }
+            width = box + gap + labelW + 2f;
+            float height = Mathf.Max(box, font * 1.3f);
+            ((RectTransform)go.transform).sizeDelta = new Vector2(width, height);
+            return t;
+        }
+
+        private static GameObject MakeStack(RectTransform parent, string name, bool vertical, float spacing)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(ContentSizeFitter));
+            HorizontalOrVerticalLayoutGroup g;
+            if (vertical) g = go.AddComponent<VerticalLayoutGroup>();
+            else g = go.AddComponent<HorizontalLayoutGroup>();
+            ((RectTransform)go.transform).SetParent(parent, false);
+            g.spacing = spacing;
+            g.childAlignment = vertical ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;
+            g.childControlWidth = false;
+            g.childControlHeight = false;
+            g.childForceExpandWidth = false;
+            g.childForceExpandHeight = false;
+            var f = go.GetComponent<ContentSizeFitter>();
+            f.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            f.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            return go;
+        }
+
+        private static TextMeshProUGUI MakeText(RectTransform parent, TMP_Text template, string text, float width, float height, float size, bool bold)
         {
             var go = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
             var rt = (RectTransform)go.transform;
@@ -349,9 +400,9 @@ namespace AppraisalPresets
             if (template != null)
             {
                 tmp.font = template.font;
-                tmp.fontSize = template.fontSize;
                 tmp.color = template.color;
             }
+            tmp.fontSize = size;
             tmp.raycastTarget = false;
             tmp.enableWordWrapping = false;
             tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;

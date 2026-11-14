@@ -25,6 +25,7 @@ namespace AppraisalPresets
         };
 
         private static GameObject _row;
+        internal static float RefFontSize; // 게임 +/- 버튼 글자 크기 (계산기 글자 크기 기준)
         private static Button _baseBtn, _minBtn;
         private static GameItem _lastItem;
         private static bool _failed;
@@ -43,9 +44,8 @@ namespace AppraisalPresets
                 GameItem item = __instance.currentInspectingItem;
                 bool changed = item != _lastItem;
                 _lastItem = item;
-                AppraisalCalculator.Tick(__instance, TypeIdOf(item), changed);
-
                 if (_row == null && !Build(__instance)) return;
+                AppraisalCalculator.Tick(__instance, TypeIdOf(item), changed, _row, RefFontSize);
                 if (!changed) return;
 
                 int[] v = ValuesFor(item);
@@ -110,6 +110,9 @@ namespace AppraisalPresets
                 Debug.LogWarning("[AppraisalPresets] price buttons not found; feature off");
                 return false;
             }
+
+            TMP_Text refText = priceButtons[0].GetComponentInChildren<TMP_Text>(true);
+            RefFontSize = refText != null ? refText.fontSize : 0f;
 
             Transform row = priceButtons[0].transform.parent;
             bool rowIsContainer = row != null && row != panel && AllUnder(priceButtons, row);
