@@ -21,11 +21,28 @@ namespace KeybindClear
             Manager = __instance;
         }
 
+        // 게임은 키 버튼을 만든 직후 builder.Last.SetFixedWidth(160) 을 부르는데, 그 사이에 [x] 를 끼워 넣어서
+        // Last 가 [x] 가 된다. 줄이 다 만들어진 뒤 두 버튼 폭을 다시 맞춘다 (키 160, [x] 작게).
+        [System.ThreadStatic] internal static CustomUIElement KeyButton;
+        [System.ThreadStatic] internal static CustomUIElement ClearButton;
+
         private static void Postfix()
         {
+            try
+            {
+                if (KeyButton != null) KeyButton.SetFixedWidth(160f);
+                if (ClearButton != null) ClearButton.SetFixedWidth(ClearWidth);
+            }
+            catch
+            {
+            }
             Current = null;
             Manager = null;
+            KeyButton = null;
+            ClearButton = null;
         }
+
+        internal const float ClearWidth = 26f;
     }
 
     // 키 버튼(AddButton 의 id == entry.id)이 만들어진 직후, 같은 줄에 [x] 버튼을 추가한다.
@@ -43,8 +60,10 @@ namespace KeybindClear
             try
             {
                 string optionId = entry.id;
+                BuildEntryPatch.KeyButton = __instance.Last;
                 __instance.AddButton("x", () => Clear(mgr, optionId), Prefix_ + optionId);
-                __instance.Last.SetFixedWidth(32f);
+                BuildEntryPatch.ClearButton = __instance.Last;
+                __instance.Last.SetFixedWidth(BuildEntryPatch.ClearWidth);
             }
             catch (System.Exception ex)
             {
