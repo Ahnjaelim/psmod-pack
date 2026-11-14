@@ -2,7 +2,7 @@
 
 *Probably Stolen*용 개인 모드팩입니다. 여러 모드를 DLL 하나로 합쳐서 버전 관리할 대상이 하나뿐입니다.
 
-현재 버전: **2.8.5**
+현재 버전: **2.8.6**
 
 ## 구성
 
@@ -17,6 +17,7 @@
 - **Better Keybinder** (`Merged/ComboKeyPresets.cs`)
   - 보관 코디네이터 프리셋과 공구함 슬롯 키에 Ctrl / Shift / Alt 조합을 쓸 수 있습니다.
   - 돋보기, 모든 창 닫기 단축키를 추가합니다 (기본 Ctrl+Shift+W, 옵션 > 키 설정).
+  - 공구함 단축키나 돋보기 단축키로 집은 도구는 한 번 사용하면 바로 내려놓습니다.
 - **Better Butcher Machine** (`Merged/BetterButcherMachine.cs`): 자동 도축기 우리 탭에 "복합" 도태 모드를 추가합니다.
   - 나이 또는 무게 기준으로 도태합니다.
   - 번식용 개체는 남깁니다.

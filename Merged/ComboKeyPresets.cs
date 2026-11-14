@@ -458,9 +458,28 @@ namespace ComboKeyPresets
         {
             GameItem oneShot = Magnifier.OneShotItem;
             Magnifier.OneShotItem = null;
-            if (oneShot == null || oneShot != ___currentItem) return true; // 공구함 장착 등은 원래대로 유지
+            if (oneShot == null || oneShot != ___currentItem) return true; // 클릭으로 집은 도구 등은 원래대로 유지
             __instance.EndSelect();
             return false;
+        }
+    }
+
+    // 공구함 단축키로 집은 도구도 한 번 쓰면 내려놓는다 (돋보기 단축키와 같은 규칙).
+    [HarmonyPatch(typeof(ToolboxHelper), nameof(ToolboxHelper.TryToggleEquipSlot))]
+    internal static class Patch_ToolboxOneShot
+    {
+        private static void Prefix(out GameItem __state)
+        {
+            __state = ItemSelectHandler.current != null ? ItemSelectHandler.current.GetEquippedItem() : null;
+        }
+
+        private static void Postfix(GameItem __state)
+        {
+            ItemSelectHandler sel = ItemSelectHandler.current;
+            if (sel == null) return;
+            GameItem now = sel.GetEquippedItem();
+            if (now != null && now != __state) Magnifier.OneShotItem = now;      // 새로 집음 → 1회용
+            else if (now == null) Magnifier.OneShotItem = null;                  // 단축키로 내려놓음
         }
     }
 
