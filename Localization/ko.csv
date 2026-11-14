@@ -49,3 +49,43 @@ value_vs_base_pricey,{0} 고가
 pill_not_owned,남의 물건
 appraisal_btn_base,기본 {0}
 appraisal_btn_min,최저 {0}
+calc_title,감정 계산기
+calc_result,계산값: {0}
+calc_h_material,재질
+calc_gold,금도금
+calc_carbon,탄소 복합재
+calc_h_interface,인터페이스
+calc_neural,뉴럴
+calc_emg,EMG+
+calc_unspec,미지정
+calc_h_condition,상태
+calc_wear,가벼운 마모
+calc_damage,손상
+calc_h_addons,추가 부품
+calc_armored,장갑
+calc_bladed,칼날
+calc_h_state,상태
+calc_opened,개봉됨 (= 40)
+calc_fake,가짜 (= 40)
+calc_h_contents,구성
+calc_meat,고기 두 배
+calc_deluxe,디럭스 (번 + 피클)
+calc_h_production,생산
+calc_edge_month,첫/마지막 생산월
+calc_first_year,첫 생산년도 (425~429)
+calc_h_facility,공장
+calc_fac_high,고품질 공장
+calc_fac_low,저품질 공장
+calc_h_casing,케이스
+calc_wear_heavy,심한 마모
+calc_crack,균열
+calc_screw,나사 노출
+calc_reinforced,보강됨
+calc_h_color,색
+calc_color_poor,불량 색
+calc_color_high,고품질 색
+calc_h_seal,씰 (조건 맞으면 보너스)
+calc_seal_ll,LL
+calc_seal_zhonghua,중화
+calc_seal_republic,공화국
+calc_seal_ignition,점화 연구소

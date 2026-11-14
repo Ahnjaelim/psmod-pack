@@ -40,11 +40,13 @@ namespace AppraisalPresets
                     _lastItem = null;
                     return;
                 }
-                if (_row == null && !Build(__instance)) return;
-
                 GameItem item = __instance.currentInspectingItem;
-                if (item == _lastItem) return;
+                bool changed = item != _lastItem;
                 _lastItem = item;
+                AppraisalCalculator.Tick(__instance, TypeIdOf(item), changed);
+
+                if (_row == null && !Build(__instance)) return;
+                if (!changed) return;
 
                 int[] v = ValuesFor(item);
                 _row.SetActive(v != null);
@@ -60,12 +62,17 @@ namespace AppraisalPresets
             }
         }
 
-        private static int[] ValuesFor(GameItem item)
+        private static string TypeIdOf(GameItem item)
         {
             if (item == null) return null;
             AppraisalItemType type = AppraisalItemRegistry.Find(item);
-            if (type == null || type.id == null) return null;
-            return Values.TryGetValue(type.id, out int[] v) ? v : null;
+            return type?.id;
+        }
+
+        private static int[] ValuesFor(GameItem item)
+        {
+            string id = TypeIdOf(item);
+            return id != null && Values.TryGetValue(id, out int[] v) ? v : null;
         }
 
         private static void Apply(InspectionUIManager ui, int pick)
