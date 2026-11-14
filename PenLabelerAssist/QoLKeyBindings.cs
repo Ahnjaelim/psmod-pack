@@ -183,12 +183,13 @@ internal static class QoLKeyBindings
 			EnsureBinding("pen_qol_boxselect_modifier", (KeyCode)308, "keybind_boxselect_modifier");
 			EnsureBinding("pen_qol_multi_select_toggle", (KeyCode)304, "keybind_multi_select_toggle");
 			EnsureBinding("pen_qol_quick_buy", (KeyCode)32, "keybind_quick_buy");
-			EnsureBinding("pen_qol_quick_sell", (KeyCode)32, "keybind_quick_sell");
+			EnsureBinding("pen_qol_quick_sell", (KeyCode)13, "keybind_quick_sell");
 			EnsureBinding("pen_qol_quick_appraisal", (KeyCode)32, "keybind_quick_appraisal");
 			EnsureBinding("pen_qol_quick_confront", (KeyCode)32, "keybind_quick_confront");
 			EnsureBinding("pen_qol_quick_pin", (KeyCode)116, "keybind_quick_pin");
 			ReloadSavedBindings();
 			MigrateFollowBindingConflict();
+			MigrateQuickSellToEnter();
 			GameOptionRegistry.EnsureVanilla();
 			EnsureOption("pen_qol_tab_left", "keybind_tab_left", "keybind_tab_left_tip");
 			EnsureOption("pen_qol_tab_right", "keybind_tab_right", "keybind_tab_right_tip");
@@ -210,6 +211,31 @@ internal static class QoLKeyBindings
 		}
 	}
 
+
+	// 빠른 판매("물건 N개 판매" 버튼) 기본 키를 Space -> Enter 로 바꿨다. 예전 기본값(Space)이 그대로면 한 번만 Enter 로 옮긴다.
+	// 사용자가 직접 다른 키로 바꿔 둔 경우는 건드리지 않는다.
+	private static void MigrateQuickSellToEnter()
+	{
+		try
+		{
+			const string flag = "psmp_quick_sell_enter_migrated";
+			if (PlayerPrefs.GetInt(flag, 0) != 0)
+			{
+				return;
+			}
+			PlayerPrefs.SetInt(flag, 1);
+			PlayerPrefs.Save();
+			if (KeyBindHelper.Get("pen_qol_quick_sell") == (KeyCode)32)
+			{
+				KeyBindHelper.Set("pen_qol_quick_sell", (KeyCode)13);
+				KeyBindHelper.Save();
+			}
+		}
+		catch (Exception ex)
+		{
+			Log.Warn("quick sell key migration failed: " + ex.Message);
+		}
+	}
 	private static void EnsureBinding(string id, KeyCode defaultKey, string labelKey)
 	{
 		//IL_001b: Unknown result type (might be due to invalid IL or missing references)

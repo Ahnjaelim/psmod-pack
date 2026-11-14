@@ -89,3 +89,5 @@ calc_seal_ll,LL
 calc_seal_zhonghua,중화
 calc_seal_republic,공화국
 calc_seal_ignition,점화 연구소
+keybind_quick_sell,빠른 판매 ("물건 N개 판매" 버튼)
+keybind_quick_sell_tip,손님이 원하는 물건을 카운터에 올려둔 상태에서 "물건 N개 판매" 버튼을 누릅니다. 기본 Enter.
