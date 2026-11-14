@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace AppraisalPresets
 {
-    // 감정 계산기: 감정 입력 창 안, 기본/최저 버튼 줄 밑에 붙는 체크박스 블록 (카테고리별 가로 나열).
+    // 감정 계산기: 감정 창 바로 밑에 같은 폭/배경으로 붙는 상자. 체크박스는 [카테고리] 별 가로 나열.
     // 플레이어가 직접 보고 판단한 상태를 체크하면 게임의 GetCorrectValue 와 같은 식으로 값을 계산해서
     // 입력 칸에 바로 넣는다 (숨겨진 정답을 읽지 않음).
     //   의수:  AppHandHelper.GetCorrectValue   (기본 100, 최저 50, 세트 보너스 포함)
@@ -160,7 +160,6 @@ namespace AppraisalPresets
                 Section sec = typeId != null && Sections.TryGetValue(typeId, out Section found) ? found : null;
                 if (sec == null)
                 {
-                    if (_panel.activeSelf || _active != null) RestoreLayout();
                     _panel.SetActive(false);
                     _active = null;
                     return;
@@ -174,89 +173,13 @@ namespace AppraisalPresets
                     foreach (Opt o in sec.Opts) if (o.Toggle != null) o.Toggle.SetIsOnWithoutNotify(false);
                     _syncing = false;
                     ShowResult(sec, apply: false);
-                    FitLayout();
                 }
             }
             catch (Exception ex)
             {
                 _failed = true;
                 Debug.LogWarning("[AppraisalCalculator] disabled: " + ex.Message);
-                try { RestoreLayout(); } catch { }
                 if (_panel != null) _panel.SetActive(false);
-            }
-        }
-
-        // ── 감정 창 늘리기 ──
-        // 감정 창에는 자동 레이아웃이 없어서 블록이 "감정가 보내기" 버튼을 덮는다.
-        // 블록 높이만큼 창을 아래로 늘리고(위쪽 모서리는 고정), 보내기 버튼을 블록 바로 밑으로 옮긴다.
-        private static RectTransform _panelRt, _sendRt;
-        private static Vector2 _panelSize0, _panelPos0, _sendPos0;
-        private static bool _layoutSaved;
-
-        private static void SaveLayout(InspectionUIManager ui)
-        {
-            _panelRt = (RectTransform)ui.appraisalPanel.transform;
-            _sendRt = null;
-            foreach (Button b in ui.appraisalPanel.GetComponentsInChildren<Button>(true))
-            {
-                for (int i = 0; i < b.onClick.GetPersistentEventCount(); i++)
-                {
-                    if (b.onClick.GetPersistentMethodName(i) == "OnAppraisalServiceEstimated")
-                    {
-                        _sendRt = (RectTransform)b.transform;
-                        break;
-                    }
-                }
-                if (_sendRt != null) break;
-            }
-            _panelSize0 = _panelRt.sizeDelta;
-            _panelPos0 = _panelRt.anchoredPosition;
-            if (_sendRt != null) _sendPos0 = _sendRt.anchoredPosition;
-            _layoutSaved = true;
-        }
-
-        private static void RestoreLayout()
-        {
-            if (!_layoutSaved) return;
-            if (_panelRt != null)
-            {
-                _panelRt.sizeDelta = _panelSize0;
-                _panelRt.anchoredPosition = _panelPos0;
-            }
-            if (_sendRt != null) _sendRt.anchoredPosition = _sendPos0;
-        }
-
-        private static void FitLayout()
-        {
-            if (!_layoutSaved || _panelRt == null || _panel == null) return;
-            RestoreLayout();
-            var rt = (RectTransform)_panel.transform;
-            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
-            float h = LayoutUtility.GetPreferredHeight(rt);
-            if (h <= 0f) h = rt.rect.height;
-            float gap = 6f;
-            float d = h + gap;
-
-            // 창 높이 +d, 위쪽 모서리 고정 (피벗만큼 아래로 이동)
-            _panelRt.sizeDelta = _panelSize0 + new Vector2(0f, d);
-            _panelRt.anchoredPosition = _panelPos0 - new Vector2(0f, d * (1f - _panelRt.pivot.y));
-
-            if (_sendRt == null) return;
-            // 보내기 버튼 윗변을 블록 아랫변 - gap 으로 (월드 좌표로 맞춘 뒤 로컬로)
-            Canvas.ForceUpdateCanvases();
-            var blockCorners = new Vector3[4];
-            var sendCorners = new Vector3[4];
-            rt.GetWorldCorners(blockCorners);
-            _sendRt.GetWorldCorners(sendCorners);
-            float scaleY = _panelRt.lossyScale.y != 0f ? _panelRt.lossyScale.y : 1f;
-            float blockBottom = blockCorners[0].y;
-            float sendTop = sendCorners[1].y;
-            float shiftWorld = (blockBottom - gap * scaleY) - sendTop;
-            if (shiftWorld < 0f) // 겹칠 때만 내린다
-            {
-                Vector3 p = _sendRt.position;
-                p.y += shiftWorld;
-                _sendRt.position = p;
             }
         }
 
@@ -288,7 +211,7 @@ namespace AppraisalPresets
         }
 
         // ── UI 만들기 ──
-        // 감정 창 안, 기본/최저 버튼 줄 바로 밑에 붙인다:
+        // 감정 창 바로 밑에 붙는 상자:
         //   계산값: N
         //   [카테고리]
         //   ㅁ내용 ㅁ내용 ㅁ내용      (가로로 나열, 넘치면 다음 줄)
@@ -304,31 +227,40 @@ namespace AppraisalPresets
             _defs = new List<(string, Func<HashSet<string>, int>, Opt[])>();
             Define();
 
-            var rowRt = (RectTransform)anchorRow.transform;
-            var parent = (RectTransform)rowRt.parent;
+            var panelRt = (RectTransform)ui.appraisalPanel.transform;
             TMP_Text templateLabel = ui.toggle1.GetComponentInChildren<TMP_Text>(true);
             float font = refFont > 0f ? refFont : (templateLabel != null ? templateLabel.fontSize * 1.4f : 18f);
-            float avail = Mathf.Max(rowRt.rect.width, ((RectTransform)ui.appraisalPanel.transform).rect.width - 24f, 200f);
-            bool parentLayout = parent.GetComponent<LayoutGroup>() != null;
+            const int Pad = 14;
+            float width = Mathf.Max(panelRt.rect.width, 260f);
+            float avail = width - Pad * 2;
 
-            _panel = new GameObject(PanelName, typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(LayoutElement));
+            // 감정 창은 손대지 않고, 창 바로 밑에 같은 폭/배경의 상자로 붙인다 (창 아래쪽 모서리 기준).
+            _panel = new GameObject(PanelName, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(LayoutElement));
             var rt = (RectTransform)_panel.transform;
-            rt.SetParent(parent, false);
-            rt.SetSiblingIndex(rowRt.GetSiblingIndex() + 1);
-            var le = _panel.GetComponent<LayoutElement>();
-            if (!parentLayout)
+            rt.SetParent(panelRt, false);
+            _panel.GetComponent<LayoutElement>().ignoreLayout = true;
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(0f, 0f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -4f);
+            rt.sizeDelta = new Vector2(width, 0f);
+
+            Image bg = _panel.GetComponent<Image>();
+            Image panelImg = ui.appraisalPanel.GetComponent<Image>();
+            if (panelImg != null && panelImg.sprite != null)
             {
-                // 레이아웃 그룹이 없으면 버튼 줄 바로 밑 좌표에 직접 놓는다
-                le.ignoreLayout = true;
-                rt.anchorMin = rowRt.anchorMin;
-                rt.anchorMax = rowRt.anchorMin;
-                rt.pivot = new Vector2(0f, 1f);
-                Vector2 rowBottomLeft = rowRt.anchoredPosition + new Vector2(-rowRt.pivot.x * rowRt.rect.width, -rowRt.pivot.y * rowRt.rect.height);
-                rt.anchoredPosition = rowBottomLeft + new Vector2(0f, -4f);
+                bg.sprite = panelImg.sprite;
+                bg.type = panelImg.type;
+                bg.color = panelImg.color;
             }
+            else
+            {
+                bg.color = new Color(0.78f, 0.77f, 0.68f, 1f);
+            }
+            bg.raycastTarget = true; // 상자 뒤 게임 화면이 클릭되지 않게
 
             var vlg = _panel.GetComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(0, 0, 4, 4);
+            vlg.padding = new RectOffset(Pad, Pad, 10, 12);
             vlg.spacing = 2f;
             vlg.childAlignment = TextAnchor.UpperLeft;
             vlg.childControlWidth = false;
@@ -336,7 +268,7 @@ namespace AppraisalPresets
             vlg.childForceExpandWidth = false;
             vlg.childForceExpandHeight = false;
             var fitter = _panel.GetComponent<ContentSizeFitter>();
-            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // 폭 = 감정 창 폭
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             float lineH = font * 1.35f;
@@ -395,7 +327,6 @@ namespace AppraisalPresets
             }
             _panel.AddComponent<GraphicRaycaster>();
 
-            SaveLayout(ui);
             _panel.SetActive(false);
             return true;
         }
