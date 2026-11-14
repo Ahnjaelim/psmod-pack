@@ -1,0 +1,48 @@
+news_confirm_button,확인
+liquid_water,물
+liquid_heavy_metal,중금속
+liquid_organic_waste,유기 폐기물
+liquid_microplastic,미세플라스틱
+liquid_microbes,미생물
+liquid_chemical_contaminant,화학 오염 물질
+liquid_physical_contaminant,물리적 오염 물질
+liquid_mineral,미네랄
+liquid_dream_cap_mush,드림 캡 곤죽
+liquid_dream_cap_extract,드림 캡 추출물
+liquid_plant_matter,식물성 물질
+liquid_alcohol,알코올
+liquid_caffeine,카페인
+liquid_protein,단백질
+liquid_fat_oil,지방/기름
+liquid_starch,전분
+liquid_sugar,당분
+liquid_coffee_bean_mush,커피콩 곤죽
+liquid_contraceptive_hormones,피임 호르몬
+liquid_zyanide,시안화물
+liquid_nightmare_extract,나이트메어 추출물
+liquid_nightmare_cap_mush,나이트메어 캡 곤죽
+liquid_chlorine,염소
+liquid_synaprest,시냅레스트
+liquid_fanta,판타
+liquid_n_methylol_base,N-메틸올 염기
+liquid_reducing_agent,환원제
+liquid_acid,산
+liquid_base,염기
+liquid_stabilizing_agent,안정제
+liquid_insoluble_debris,불용성 찌꺼기
+liquid_lipobond_agent,리포본드제
+liquid_livestock_steroid,가축 스테로이드
+liquid_livestock_immunity,가축 면역 혈청
+liquid_wine_extract,와인 추출물
+liquid_nomore,노모어
+calendar_today_header,오늘의 이벤트
+calendar_today_none,오늘은 이벤트 없음
+calendar_today_until,~{0}일차까지
+value_current,현재가
+value_gain,{0} 이득
+value_loss,{0} 손해
+value_per_cell,칸당 가치
+value_paid,구매가
+value_base,기본가
+value_vs_base_cheap,{0} 저가
+value_vs_base_pricey,{0} 고가

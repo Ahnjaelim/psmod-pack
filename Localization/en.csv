@@ -118,3 +118,15 @@ keybind_quick_pin_tip,Toggle pin on the hovered item; batch-toggles selected ite
 settings_chem_close_recipe,Close recipe picker after selecting
 settings_chem_close_recipe_tip,Close the recipe picker immediately after selecting a recipe; the machine window and selected recipe stay active
 chem_batch_status_output_full,Not enough space
+news_confirm_button,OK
+calendar_today_header,Today's events
+calendar_today_none,No events today
+calendar_today_until,until day {0}
+value_current,Current
+value_gain,{0} gain
+value_loss,{0} loss
+value_per_cell,Per cell
+value_paid,Paid
+value_base,Base
+value_vs_base_cheap,{0} cheaper
+value_vs_base_pricey,{0} pricier

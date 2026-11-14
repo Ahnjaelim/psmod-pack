@@ -6,6 +6,18 @@ internal static class Text
 {
 	private static readonly Dictionary<string, string> Defaults = new Dictionary<string, string>
 	{
+		{ "news_confirm_button", "OK" },
+		{ "value_paid", "Paid" },
+		{ "value_base", "Base" },
+		{ "value_current", "Current" },
+		{ "value_gain", "{0} gain" },
+		{ "value_loss", "{0} loss" },
+		{ "value_per_cell", "Per cell" },
+		{ "value_vs_base_cheap", "{0} cheaper" },
+		{ "value_vs_base_pricey", "{0} pricier" },
+		{ "calendar_today_header", "Today's events" },
+		{ "calendar_today_none", "No events today" },
+		{ "calendar_today_until", "until day {0}" },
 		{ "tooltip_memory", "Remembered: {0}" },
 		{ "tooltip_label", "{0} ({1})" },
 		{ "tooltip_sep", "; " },
