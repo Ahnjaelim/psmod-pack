@@ -100,10 +100,10 @@ namespace BetterScannerUI
                 HideBars(tmp);
                 return;
             }
-            // 비율 오름차순 (같으면 이름순)
+            // 양 많은 순 (같으면 이름순)
             entries.Sort((a, b) =>
             {
-                int c = a.Amount.CompareTo(b.Amount);
+                int c = b.Amount.CompareTo(a.Amount);
                 return c != 0 ? c : string.CompareOrdinal(a.Name, b.Name);
             });
 
