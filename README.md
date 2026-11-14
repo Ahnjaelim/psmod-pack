@@ -1,38 +1,69 @@
 # Personal Mod Pack (Probably Stolen)
 
-Personal-use mod pack for *Probably Stolen*: three mods merged into a single DLL so there is only one thing to version.
+*Probably Stolen*용 개인 모드팩입니다. 여러 모드를 DLL 하나로 합쳐서 버전 관리할 대상이 하나뿐입니다.
 
-## Contents
+현재 버전: **2.8.0**
 
-- **QoL Tweaks** (`PenLabelerAssist/`): personal, buildable copy of the Workshop mod *Pen's QoL Tweaks* v1.1.5, with the strings translated to English.
-  - Quick buy / sell / appraisal / confront keys
-  - Tool box-select batching
-  - Auto battery swap
-  - Hydroponic auto replant
-  - Auto document discard
-  - Window follow / snap
-  - Chem finisher batch slider. The chosen quantity now stays fixed after pressing output.
-- **Better Keybinder** (`Merged/ComboKeyPresets.cs`):
-  - Ctrl / Shift / Alt combos for Storage Coordinator presets and Toolbox slot keys.
-  - Magnifier and Close-all-windows hotkeys (default Ctrl+Shift+W) in Options > Keybind.
-- **Better Butcher Machine** (`Merged/BetterButcherMachine.cs`): adds a "Composite" cull mode to the Auto Butcher cage tab.
-  - Cull by age OR weight.
-  - Keep breeders.
-  - Trim overcrowding lightest-first.
+## 구성
 
-## Build
+- **QoL Tweaks** (`PenLabelerAssist/`): 창작마당 모드 *Pen's QoL Tweaks* v1.1.5를 개인용으로 빌드할 수 있게 옮긴 사본입니다. 문자열은 영어로 번역했습니다.
+  - 빠른 구매 / 판매 / 감정 / 추궁 단축키
+  - 도구 박스 선택 일괄 처리
+  - 배터리 자동 교체
+  - 수경재배 자동 재심기
+  - 서류 자동 버리기
+  - 창 따라가기 / 스냅
+  - 화학 완성기 일괄 수량 슬라이더. 고른 수량이 출력 버튼을 눌러도 바뀌지 않습니다.
+- **Better Keybinder** (`Merged/ComboKeyPresets.cs`)
+  - 보관 코디네이터 프리셋과 공구함 슬롯 키에 Ctrl / Shift / Alt 조합을 쓸 수 있습니다.
+  - 돋보기, 모든 창 닫기 단축키를 추가합니다 (기본 Ctrl+Shift+W, 옵션 > 키 설정).
+- **Better Butcher Machine** (`Merged/BetterButcherMachine.cs`): 자동 도축기 우리 탭에 "복합" 도태 모드를 추가합니다.
+  - 나이 또는 무게 기준으로 도태합니다.
+  - 번식용 개체는 남깁니다.
+  - 과밀하면 가벼운 개체부터 줄입니다.
+- **Better Scanner UI** (`Merged/BetterScannerUI.cs`): 워터 스캐너와 화학 스캐너의 성분 목록을 줄 단위로 다시 그립니다.
+  - 한 줄은 성분명(왼쪽) | 액체 색 막대그래프 | 퍼센트(오른쪽)로 되어 있습니다.
+  - 비율이 낮은 성분부터 오름차순으로 정렬합니다.
+  - 액체 이름이 "Translation Error 'liquid_...'"로 나오면 복구합니다. 스캐너뿐 아니라 모든 화면에 적용됩니다.
+- **신문 확인 버튼** (`Merged/NewspaperConfirm.cs`): 신문에 확인 버튼을 붙입니다. 누르면 신문을 휴지통으로 옮기고 창을 닫습니다.
+- **달력: 오늘의 이벤트** (`Merged/CalendarTodayTooltip.cs`)
+  - 벽걸이 달력 화면에 오늘의 이벤트 목록을 표시합니다.
+  - 달력 툴팁에 오늘의 이벤트를 종료일, 가격 영향과 함께 표시합니다.
+- **유전자 등급** (`Merged/GeneGrades.cs`): 동물 툴팁의 유전자 능력치마다 S~F 등급을 붙입니다.
+  - 발현값을 종 기본값과 비교해서 매깁니다. 낮을수록 좋은 능력치는 비율을 뒤집어서 계산합니다.
+  - 기준: S +30% 이상, A +15% 이상, B +5% 이상, C ±5% 이내, D −5% 미만, F −15% 미만.
+  - 유전자 스캐너를 켜면 대립유전자마다 따로 등급을 매겨 `A / S`처럼 표시합니다 (슬래시는 회색).
+- **가치 블록** (`Merged/ValueTooltip.cs`): 아이템 툴팁의 가치 정보를 정리합니다. 각 줄 앞에 크레딧 아이콘이 붙습니다.
+  - 현재가: 산 물건은 구매가 대비 `(+n 이득)` / `(−n 손해)`를 표시합니다. 아직 안 산 물건은 대신 기본가 대비 `(−n 저가)` / `(+n 고가)`를 표시합니다.
+  - 칸당 가치: 추정 가치 ÷ 아이템이 차지하는 칸 수.
+  - 구매가 (기본가): 흐리게 표시합니다. 구매 기록이 없으면 기본가만 표시합니다.
+- **카테고리 박스** (`Merged/CategoryPills.cs`): 아이템 카테고리 태그를 좌우 여백이 같은 하이라이트 박스로 바꿉니다. 밀수품 박스는 빨간색입니다.
+- **라벨 가격 영향** (`Merged/LabelPriceEffect.cs`): 툴팁의 라벨 줄을 가격 영향에 따라 색칠하고 `(-10%)`처럼 퍼센트를 붙입니다.
+  - 빨강: 가격을 올리는 라벨
+  - 초록: 가격을 내리는 라벨
 
-The project references the game's `Probably Stolen_Data/Managed` DLLs. Build with:
+## 번역
+
+모드팩 문자열은 `Localization/en.csv`와 `Localization/ko.csv`에 있고, 기본값은 `PenLabelerAssist/Text.cs`에 있습니다.
+
+한글 번역 모드 테이블에 액체 이름이 빠져 있어서 `ko.csv`에 한국어 액체 이름(`liquid_*`)도 넣었습니다.
+
+## 빌드
+
+프로젝트는 게임의 `Probably Stolen_Data/Managed` DLL을 참조합니다. 빌드 명령:
 
 ```
 dotnet build -c Release
 ```
 
-The build copies the DLL, `manifest.xml` and `Localization/` to `Mods/PersonalQoLTweaks/`. Close the game first, because the DLL is locked while it runs.
+빌드하면 DLL, `manifest.xml`, `Localization/`이 `Mods/PersonalQoLTweaks/`로 복사됩니다. 게임이 실행 중이면 DLL이 잠겨 있으니 먼저 게임을 끄세요.
 
-## Notes
+## 참고
 
-- The mod ID is `personal-qol-tweak`.
-- The game loader instantiates only one `IMod` per DLL. `PenLabelerAssistMod` is the entry point and calls the merged modules' enable/disable hooks.
-- `[HarmonyPatch]` classes are applied by the loader's `PatchAll`.
-- `<Capabilities/>` stays empty, because the in-game scanner refuses `reflection-external`.
+- 모드 ID는 `personal-qol-tweak`입니다.
+- 게임 로더는 DLL 하나당 `IMod`를 하나만 만듭니다. 진입점은 `PenLabelerAssistMod`이고, 합쳐진 모듈의 활성화/비활성화 처리를 여기서 호출합니다.
+- `[HarmonyPatch]` 클래스는 로더의 `PatchAll`이 적용합니다.
+- 게임 모드 검사기가 `reflection-external`을 거부하므로 `<Capabilities/>`는 비워 둡니다.
+  - 람다를 넘긴 `AccessTools.FirstMethod`는 "computed type"으로 판정되어 모드팩 전체가 막힙니다.
+  - 대신 `AccessTools.Method(typeof(X), "고정된 이름")`과 `Prepare()`를 함께 쓰세요 (`GeneGrades.AddStatLinePatch` 참고).
+- 수정할 때마다 `manifest.xml`의 `<ModVersion>`을 올리세요.
