@@ -130,3 +130,4 @@ value_paid,Paid
 value_base,Base
 value_vs_base_cheap,{0} cheaper
 value_vs_base_pricey,{0} pricier
+pill_not_owned,Not yours

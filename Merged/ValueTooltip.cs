@@ -109,9 +109,10 @@ namespace ValueTooltip
                       .Append(T(gain ? "value_gain" : "value_loss", Signed(profit))).Append(")</color>");
                 }
             }
-            else if (baseValue > 0)
+            else if (baseValue > 0 && !GeneralHelper.IsItemOwned(item))
             {
-                // 아직 안 산 물건: 기본가 대비 비싼지/싼지 (싸면 초록, 비싸면 빨강)
+                // 남의 물건(손님 물건 등)만: 기본가 대비 비싼지/싼지 (싸면 초록, 비싸면 빨강).
+                // 내가 만들거나 수확한 물건은 구매가가 없어도 내 것이므로 표시하지 않는다.
                 double diff = est - baseValue;
                 if (Math.Abs(diff) >= 0.5)
                 {

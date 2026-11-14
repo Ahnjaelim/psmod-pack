@@ -19,6 +19,7 @@ namespace CategoryPills
         private const string Space = "<space=4px>";
         private const string NormalBg = "#3fb8b840";
         private const string ContrabandBg = "#d9695f40";
+        private const string NotOwnedBg = "#e0b04a40";
 
         private static bool Prefix(RichTextBuilder builder, GameItem item)
         {
@@ -38,6 +39,13 @@ namespace CategoryPills
                         + Pad + Space + name + Space + Pad + "</mark>";
                     builder.Add(text, contraband ? RenderHandler.ColorPalette.LightRed : RenderHandler.ColorPalette.LightCyan);
                     any = true;
+                }
+                // 내 소유가 아닌 물건(손님 물건 등)에는 "남의 물건" 박스를 붙인다.
+                if (!GeneralHelper.IsItemOwned(item))
+                {
+                    string label = PenLabelerAssist.Text.Get("pill_not_owned");
+                    builder.Add((any ? "  " : "") + "<mark=" + NotOwnedBg + ">" + Pad + Space + label + Space + Pad + "</mark>",
+                        RenderHandler.ColorPalette.LightYellow);
                 }
                 builder.AddLine("");
                 return false;
