@@ -10,8 +10,8 @@ using UnityEngine.UI;
 namespace BetterScannerUI
 {
     // 워터 스캐너 / 화학 스캐너의 성분 목록을
-    //   성분명(좌측 정렬) | 막대그래프 | 퍼센트(우측 정렬)
-    // 형태로, 비율 오름차순으로 다시 그린다.
+    //   성분명(좌측 정렬) | 막대그래프(퍼센트를 막대 위에 겹쳐 씀) | 양(우측 정렬, 흐리게)
+    // 형태로, 양 많은 순으로 다시 그린다.
     //
     // 원본 RefreshUI 가 contaminantTMP.text 를 "이름: 양 (xx.xx%)\n" 로 채운 뒤 Postfix 에서 덮어쓴다.
     // 막대는 폰트 글리프(█ 등)가 없을 수 있어서 텍스트가 아닌 UI Image 로 그린다.
@@ -110,42 +110,45 @@ namespace BetterScannerUI
             RectTransform rt = tmp.rectTransform;
             float width = rt.rect.width;
             float gap = tmp.fontSize * 0.6f;
+            float inset = tmp.fontSize * 0.3f; // 막대 안 퍼센트 글자의 왼쪽 여백
 
-            // 오른쪽 열: 흐린 양(원본과 같은 uL / mL / L 표기) + 퍼센트. 예) "27.00 mL  6.12%"
+            // 퍼센트는 막대 위에 겹쳐 쓰고(막대 왼쪽 안쪽), 오른쪽 열에는 흐린 양(uL / mL / L)만 둔다.
             var pctStrings = new string[entries.Count];
+            var amtStrings = new string[entries.Count];
             float nameCol = 0f;
-            float pctCol = 0f;
+            float amtCol = 0f;
+            float pctMax = 0f;
             for (int i = 0; i < entries.Count; i++)
             {
-                pctStrings[i] = "<color=" + AmountColor + ">" + WaterScannerUIManager.FormatAmount(entries[i].Amount) + "</color>  "
-                    + entries[i].Pct.ToString("F2", CultureInfo.InvariantCulture) + "%";
+                pctStrings[i] = entries[i].Pct.ToString("F2", CultureInfo.InvariantCulture) + "%";
+                amtStrings[i] = "<color=" + AmountColor + ">" + WaterScannerUIManager.FormatAmount(entries[i].Amount) + "</color>";
                 nameCol = Mathf.Max(nameCol, tmp.GetPreferredValues(entries[i].Name).x);
-                pctCol = Mathf.Max(pctCol, tmp.GetPreferredValues(pctStrings[i]).x);
+                amtCol = Mathf.Max(amtCol, tmp.GetPreferredValues(amtStrings[i]).x);
+                pctMax = Mathf.Max(pctMax, tmp.GetPreferredValues(pctStrings[i]).x);
             }
 
             if (width > 0f) nameCol = Mathf.Min(nameCol, width * 0.45f);
             float barStart = nameCol + gap;
-            float barEnd = width - pctCol - gap;
-            bool drawBars = width > 0f && barEnd - barStart >= tmp.fontSize * 2f;
+            float barEnd = width - amtCol - gap;
+            // 막대 안에 퍼센트가 들어갈 만큼 넓어야 겹쳐 그린다. 아니면 글자만 (이름  양  퍼센트).
+            bool drawBars = width > 0f && barEnd - barStart >= pctMax + inset * 2f;
 
-            // 텍스트: 이름은 왼쪽, 퍼센트는 줄마다 오른쪽 끝에 맞춘다.
             tmp.alignment = TextAlignmentOptions.TopLeft;
             tmp.enableWordWrapping = false;
             var sb = new StringBuilder();
             for (int i = 0; i < entries.Count; i++)
             {
                 sb.Append(entries[i].Name);
-                if (width > 0f)
+                if (drawBars)
                 {
-                    float pctX = width - tmp.GetPreferredValues(pctStrings[i]).x;
-                    float pctPos = Mathf.Clamp(pctX / width * 100f, 0f, 100f);
-                    sb.Append("<pos=").Append(pctPos.ToString("F2", CultureInfo.InvariantCulture)).Append("%>");
+                    sb.Append("<pos=").Append(Pct(barStart + inset, width)).Append("%>").Append(pctStrings[i]);
+                    float amtX = width - tmp.GetPreferredValues(amtStrings[i]).x;
+                    sb.Append("<pos=").Append(Pct(amtX, width)).Append("%>").Append(amtStrings[i]);
                 }
                 else
                 {
-                    sb.Append("  ");
+                    sb.Append("  ").Append(amtStrings[i]).Append("  ").Append(pctStrings[i]);
                 }
-                sb.Append(pctStrings[i]);
                 if (i < entries.Count - 1) sb.Append('\n');
             }
             tmp.text = sb.ToString();
@@ -166,6 +169,11 @@ namespace BetterScannerUI
             }
 
             RectTransform container = GetContainer(tmp);
+            if (container == null)
+            {
+                HideBars(tmp);
+                return;
+            }
             container.gameObject.SetActive(true);
             float left = rt.rect.xMin;
             float barWidth = barEnd - barStart;
@@ -174,7 +182,8 @@ namespace BetterScannerUI
             {
                 TMP_LineInfo line = info.lineInfo[i];
                 float yMid = (line.ascender + line.descender) * 0.5f;
-                float h = Mathf.Max(2f, (line.ascender - line.descender) * 0.55f);
+                // 글자가 올라가므로 막대를 줄 높이에 가깝게
+                float h = Mathf.Max(2f, (line.ascender - line.descender) * 0.9f);
 
                 Image track = GetBar(container, i * 2);
                 Place(track.rectTransform, left + barStart, yMid, barWidth, h);
@@ -190,21 +199,49 @@ namespace BetterScannerUI
                 container.GetChild(c).gameObject.SetActive(false);
         }
 
+        private static string Pct(float x, float width)
+        {
+            return Mathf.Clamp(x / width * 100f, 0f, 100f).ToString("F2", CultureInfo.InvariantCulture);
+        }
+
+        private static string ContainerNameFor(TextMeshProUGUI tmp)
+        {
+            return ContainerName + "_" + tmp.GetInstanceID();
+        }
+
+        // 막대는 텍스트의 "형제"로, 텍스트 바로 앞에 둔다. UI 는 나중 형제가 위에 그려지므로
+        // 이렇게 해야 퍼센트 글자가 막대 위에 보인다 (자식으로 두면 막대가 글자를 덮음).
+        // 컨테이너는 텍스트와 같은 위치/크기를 따라가고, 막대는 피벗 기준 좌표를 쓴다.
         private static RectTransform GetContainer(TextMeshProUGUI tmp)
         {
-            Transform existing = tmp.transform.Find(ContainerName);
-            if (existing != null) return (RectTransform)existing;
+            RectTransform t = tmp.rectTransform;
+            Transform parent = t.parent;
+            if (parent == null) return null;
 
-            var go = new GameObject(ContainerName, typeof(RectTransform));
-            var rt = (RectTransform)go.transform;
-            rt.SetParent(tmp.transform, false);
-            // 부모 피벗을 원점으로 쓰기 위해 앵커를 부모 피벗에 고정
-            Vector2 p = tmp.rectTransform.pivot;
-            rt.anchorMin = p;
-            rt.anchorMax = p;
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = Vector2.zero;
-            rt.sizeDelta = Vector2.zero;
+            Transform existing = parent.Find(ContainerNameFor(tmp));
+            RectTransform rt;
+            if (existing != null)
+            {
+                rt = (RectTransform)existing;
+            }
+            else
+            {
+                var go = new GameObject(ContainerNameFor(tmp), typeof(RectTransform), typeof(LayoutElement));
+                go.GetComponent<LayoutElement>().ignoreLayout = true; // 부모 레이아웃 그룹이 줄 세우지 않게
+                rt = (RectTransform)go.transform;
+                rt.SetParent(parent, false);
+            }
+            rt.anchorMin = t.anchorMin;
+            rt.anchorMax = t.anchorMax;
+            rt.pivot = t.pivot;
+            rt.anchoredPosition = t.anchoredPosition;
+            rt.sizeDelta = t.sizeDelta;
+            rt.localRotation = t.localRotation;
+            rt.localScale = t.localScale;
+            // 텍스트 바로 앞 순서로
+            int ti = t.GetSiblingIndex();
+            int ci = rt.GetSiblingIndex();
+            if (ci != ti - 1) rt.SetSiblingIndex(ci < ti ? ti - 1 : ti);
             return rt;
         }
 
@@ -221,8 +258,9 @@ namespace BetterScannerUI
             var img = go.GetComponent<Image>();
             img.raycastTarget = false;
             var rt = img.rectTransform;
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            // 컨테이너 피벗 = 텍스트 피벗 → 텍스트 로컬 좌표를 그대로 쓸 수 있다.
+            rt.anchorMin = container.pivot;
+            rt.anchorMax = container.pivot;
             rt.pivot = new Vector2(0f, 0.5f);
             return img;
         }
@@ -236,7 +274,8 @@ namespace BetterScannerUI
 
         private static void HideBars(TextMeshProUGUI tmp)
         {
-            Transform existing = tmp.transform.Find(ContainerName);
+            Transform parent = tmp.transform.parent;
+            Transform existing = parent != null ? parent.Find(ContainerNameFor(tmp)) : null;
             if (existing != null) existing.gameObject.SetActive(false);
         }
 

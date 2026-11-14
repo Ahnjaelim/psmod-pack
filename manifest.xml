@@ -3,7 +3,7 @@
   <ID>personal-qol-tweak</ID>
   <Name>Personal Mod Pack</Name>
   <Author>me</Author>
-  <ModVersion>2.8.4</ModVersion>
+  <ModVersion>2.8.5</ModVersion>
   <Description>All my personal mods in one: QoL Tweaks (quick buy/sell/appraisal keys, tool batching, auto battery swap, hydroponic replant, chem finisher batch slider, window follow/snap, etc.) + Better Keybinder (Ctrl/Shift/Alt combos for Storage Coordinator and Toolbox, Magnifier and Close-all-windows hotkeys) + Better Butcher Machine (Composite cull mode for the Auto Butcher cage tab) + Better Scanner UI (water/chem scanner contents as name / bar / percent, ascending) + Newspaper OK button (moves the newspaper to the trash) + Calendar screen + tooltip list today's events + Gene grades (S-F) on animal tooltips + Tidy value block (paid / base / estimated / per cell) in item tooltips + Category tags as highlighted boxes + Label price effect colors and percent.</Description>
   <Assemblies>
     <Assembly>PersonalQoLTweaks.dll</Assembly>
