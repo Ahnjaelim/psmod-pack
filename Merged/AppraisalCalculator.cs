@@ -165,6 +165,7 @@ namespace AppraisalPresets
                     return;
                 }
                 if (!_panel.activeSelf) _panel.SetActive(true);
+                Reposition(ui);
                 if (sec != _active || itemChanged)
                 {
                     foreach (Section other in Sections.Values) other.Root.SetActive(other == sec);
@@ -181,6 +182,77 @@ namespace AppraisalPresets
                 Debug.LogWarning("[AppraisalCalculator] disabled: " + ex.Message);
                 if (_panel != null) _panel.SetActive(false);
             }
+        }
+
+        // ── 위치: 감정(돋보기) 창 왼쪽 바깥에 바짝, 세로 가운데 ──
+        // 감정 서비스 상자는 감정 창 아래쪽에 겹쳐 붙어 있으므로, 그 조상 중 "창" 크기인 것을 찾아 옆에 붙인다.
+        // 왼쪽이 화면 밖으로 넘치면 오른쪽에 붙인다. 창을 못 찾으면 감정 서비스 상자 옆에 붙인다.
+        private static readonly Vector3[] Corners = new Vector3[4];
+        private static RectTransform _window;
+        private const float SideGap = 0f;
+
+        private static void Reposition(InspectionUIManager ui)
+        {
+            var rt = (RectTransform)_panel.transform;
+            var service = (RectTransform)ui.appraisalPanel.transform;
+            if (_window == null) _window = FindWindow(service);
+            RectTransform target = _window != null ? _window : service;
+
+            target.GetWorldCorners(Corners);
+            float left = Corners[0].x, right = Corners[2].x;
+            float bottom = Corners[0].y, top = Corners[1].y;
+            float scale = rt.lossyScale.x > 0f ? rt.lossyScale.x : 1f;
+            float gap = SideGap * scale;
+            float boxW = rt.rect.width * scale;
+            float boxH = rt.rect.height * scale;
+
+            // 화면(루트 캔버스) 범위
+            float screenLeft = float.MinValue, screenBottom = float.MinValue, screenTop = float.MaxValue;
+            Canvas c = service.GetComponentInParent<Canvas>();
+            if (c != null)
+            {
+                ((RectTransform)c.rootCanvas.transform).GetWorldCorners(Corners);
+                screenLeft = Corners[0].x;
+                screenBottom = Corners[0].y;
+                screenTop = Corners[1].y;
+            }
+
+            // 세로: 창 가운데. 상자가 화면 위/아래로 넘치지 않게.
+            float y = (top + bottom) * 0.5f + boxH * 0.5f;
+            if (y > screenTop) y = screenTop;
+            if (y - boxH < screenBottom) y = screenBottom + boxH;
+
+            rt.pivot = new Vector2(0f, 1f);
+            float x = left - gap - boxW >= screenLeft ? left - gap - boxW : right + gap;
+            rt.position = new Vector3(x, y, rt.position.z);
+        }
+
+        // 감정 서비스 상자보다 확실히 넓고 화면 전체보다는 작은 첫 조상 = 감정 창
+        private static RectTransform FindWindow(RectTransform service)
+        {
+            float serviceW = WorldWidth(service);
+            float screenW = float.MaxValue;
+            Canvas c = service.GetComponentInParent<Canvas>();
+            if (c != null) screenW = WorldWidth((RectTransform)c.rootCanvas.transform);
+            for (Transform t = service.parent; t != null; t = t.parent)
+            {
+                if (!(t is RectTransform r)) continue;
+                if (r.GetComponent<Canvas>() != null && r.GetComponent<Canvas>().isRootCanvas) break;
+                float w = WorldWidth(r);
+                if (w > serviceW * 1.15f && w < screenW * 0.85f)
+                {
+                    Debug.Log("[AppraisalCalculator] attaching beside window '" + r.name + "'");
+                    return r;
+                }
+            }
+            Debug.Log("[AppraisalCalculator] window not found; attaching beside the appraisal box");
+            return null;
+        }
+
+        private static float WorldWidth(RectTransform r)
+        {
+            r.GetWorldCorners(Corners);
+            return Corners[2].x - Corners[1].x;
         }
 
         private static void OnToggle(Section sec, Opt opt, bool on)
@@ -211,10 +283,11 @@ namespace AppraisalPresets
         }
 
         // ── UI 만들기 ──
-        // 감정 창 바로 밑에 붙는 상자:
+        // 감정 창 왼쪽에 붙는 세로형 상자:
         //   계산값: N
         //   [카테고리]
-        //   ㅁ내용 ㅁ내용 ㅁ내용      (가로로 나열, 넘치면 다음 줄)
+        //   ㅁ내용
+        //   ㅁ내용
         // 체크박스는 게임의 추궁 체크박스(toggle1)를 복제하고, 글자 크기는 게임 +/- 버튼 글자에 맞춘다.
         private static bool Build(InspectionUIManager ui, GameObject anchorRow, float refFont)
         {
@@ -231,10 +304,13 @@ namespace AppraisalPresets
             TMP_Text templateLabel = ui.toggle1.GetComponentInChildren<TMP_Text>(true);
             float font = refFont > 0f ? refFont : (templateLabel != null ? templateLabel.fontSize * 1.4f : 18f);
             const int Pad = 14;
-            float width = Mathf.Max(panelRt.rect.width, 260f);
+            // 세로형: 폭은 가장 긴 항목에 맞춘다 (아래에서 계산). 임시값.
+            float width = 200f;
             float avail = width - Pad * 2;
+            var texts = new List<TextMeshProUGUI>();
+            float maxW = 0f;
 
-            // 감정 창은 손대지 않고, 창 바로 밑에 같은 폭/배경의 상자로 붙인다 (창 아래쪽 모서리 기준).
+            // 감정 창은 손대지 않고, 같은 폭/배경의 상자를 만든다. 위치는 Reposition 이 매 프레임 감정 창 오른쪽에 맞춘다.
             _panel = new GameObject(PanelName, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(LayoutElement));
             var rt = (RectTransform)_panel.transform;
             rt.SetParent(panelRt, false);
@@ -268,11 +344,13 @@ namespace AppraisalPresets
             vlg.childForceExpandWidth = false;
             vlg.childForceExpandHeight = false;
             var fitter = _panel.GetComponent<ContentSizeFitter>();
-            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // 폭 = 감정 창 폭
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // 폭은 아래에서 직접 지정
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             float lineH = font * 1.35f;
             _result = MakeText(rt, templateLabel, "", avail, lineH, font, bold: true);
+            texts.Add(_result);
+            maxW = Mathf.Max(maxW, _result.GetPreferredValues(string.Format(L("calc_result", "Estimate: {0}"), 99999)).x);
 
             foreach (var def in _defs)
             {
@@ -280,9 +358,6 @@ namespace AppraisalPresets
                 GameObject holder = MakeStack(rt, "Sec_" + def.type, vertical: true, spacing: 1f);
                 sec.Root = holder;
                 var hrt = (RectTransform)holder.transform;
-                RectTransform line = null;
-                float used = 0f;
-                float hgap = Mathf.Round(font * 0.9f);
 
                 foreach (Opt o in def.opts)
                 {
@@ -290,18 +365,15 @@ namespace AppraisalPresets
                     {
                         TextMeshProUGUI h = MakeText(hrt, templateLabel, "[" + o.Label + "]", avail, lineH, font * 0.9f, bold: false);
                         h.alpha = 0.75f;
-                        line = null;
+                        texts.Add(h);
+                        maxW = Mathf.Max(maxW, h.GetPreferredValues(h.text).x);
                         continue;
                     }
+                    // 세로형: 항목 하나당 한 줄
                     Toggle t = MakeToggle(ui, o, font, out float w);
-                    if (line == null || used + w > avail)
-                    {
-                        line = (RectTransform)MakeStack(hrt, "Line", vertical: false, spacing: hgap).transform;
-                        used = 0f;
-                    }
-                    t.transform.SetParent(line, false);
+                    t.transform.SetParent(hrt, false);
                     o.Toggle = t;
-                    used += w + hgap;
+                    maxW = Mathf.Max(maxW, w);
                     Section s = sec;
                     Opt opt = o;
                     t.onValueChanged.AddListener(on => OnToggle(s, opt, on));
@@ -310,6 +382,13 @@ namespace AppraisalPresets
                 holder.SetActive(false);
                 Sections[def.type] = sec;
             }
+
+            // 실제 폭 = 가장 긴 줄 + 좌우 여백
+            avail = Mathf.Ceil(maxW) + 2f;
+            width = avail + Pad * 2;
+            rt.sizeDelta = new Vector2(width, 0f);
+            foreach (TextMeshProUGUI t in texts)
+                t.rectTransform.sizeDelta = new Vector2(avail, t.rectTransform.sizeDelta.y);
 
             // 감정 창 형제 요소가 클릭을 가로채지 않게 자체 Canvas 로 맨 위에서 클릭을 받는다 (2.9.1 수정 유지).
             Canvas parentCanvas = ui.appraisalPanel.GetComponentInParent<Canvas>();
