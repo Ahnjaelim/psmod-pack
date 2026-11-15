@@ -112,8 +112,8 @@ namespace AppraisalPresets
                 O("edge_month", null, "calc_edge_month", "First / last production month", 50),
                 O("first_year", null, "calc_first_year", "First production year (425-429)", 80),
                 H("calc_h_facility", "Facility"),
-                O("fac_high", "fac", "calc_fac_high", "High-quality facility", 50),
-                O("fac_low", "fac", "calc_fac_low", "Low-quality facility", -50));
+                O("fac_high", "fac", "calc_fac_high", "High-quality facility", 50, FacilityList(RibwichHelper.HIGH_QUALITY_FACILITY_NUMBERS)),
+                O("fac_low", "fac", "calc_fac_low", "Low-quality facility", -50, FacilityList(RibwichHelper.LOW_QUALITY_FACILITY_NUMBERS)));
             Add("plasma_fuel", Plasma,
                 H("calc_h_casing", "Casing"),
                 O("wear", "wear", "calc_wear", "Wear", -45),
@@ -133,8 +133,17 @@ namespace AppraisalPresets
 
         // 정의용 작은 헬퍼: Group == "#" 이면 소제목 줄
         private static Opt H(string key, string en) => new Opt { Group = "#", Label = L(key, en) };
-        private static Opt O(string id, string group, string key, string en, int delta) =>
-            new Opt { Id = id, Group = group, Label = L(key, en), Delta = delta };
+        private static Opt O(string id, string group, string key, string en, int delta, string suffix = null) =>
+            new Opt { Id = id, Group = group, Label = L(key, en) + (suffix ?? ""), Delta = delta };
+
+        // 립위치 포장 시설 번호 목록 " (#1, 2, 5, 8, 21, 34)". 게임 상수를 그대로 읽어서 업데이트로 바뀌어도 맞게.
+        private static string FacilityList(int[] numbers)
+        {
+            if (numbers == null || numbers.Length == 0) return "";
+            var sorted = (int[])numbers.Clone();
+            Array.Sort(sorted);
+            return " (#" + string.Join(", ", sorted) + ")";
+        }
 
         private static string L(string key, string en)
         {
@@ -189,7 +198,8 @@ namespace AppraisalPresets
         // 왼쪽이 화면 밖으로 넘치면 오른쪽에 붙인다. 창을 못 찾으면 감정 서비스 상자 옆에 붙인다.
         private static readonly Vector3[] Corners = new Vector3[4];
         private static RectTransform _window;
-        private const float SideGap = 0f;
+        // 음수 = 창 쪽으로 겹쳐 붙임 (창 테두리 바깥 여백만큼 안으로)
+        private const float SideGap = -80f;
 
         private static void Reposition(InspectionUIManager ui)
         {
