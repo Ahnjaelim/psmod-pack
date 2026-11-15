@@ -259,6 +259,16 @@ namespace AppraisalPresets
             return null;
         }
 
+        // 마우스가 계산기 상자 위에 있는지 (상자 뒤 아이템 툴팁 막기용)
+        internal static bool IsMouseOverPanel()
+        {
+            if (_panel == null || !_panel.activeInHierarchy) return false;
+            var rt = (RectTransform)_panel.transform;
+            Canvas c = _panel.GetComponent<Canvas>();
+            Camera cam = c == null || c.renderMode == RenderMode.ScreenSpaceOverlay ? null : (c.worldCamera ?? c.rootCanvas.worldCamera);
+            return RectTransformUtility.RectangleContainsScreenPoint(rt, Input.mousePosition, cam);
+        }
+
         private static float WorldWidth(RectTransform r)
         {
             r.GetWorldCorners(Corners);
