@@ -199,7 +199,7 @@ namespace AppraisalPresets
         private static readonly Vector3[] Corners = new Vector3[4];
         private static RectTransform _window;
         // 음수 = 창 쪽으로 겹쳐 붙임 (창 테두리 바깥 여백만큼 안으로)
-        private const float SideGap = -80f;
+        private const float SideGap = -130f;
 
         private static void Reposition(InspectionUIManager ui)
         {
