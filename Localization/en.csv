@@ -133,3 +133,5 @@ value_vs_base_pricey,{0} pricier
 pill_not_owned,Not yours
 appraisal_btn_base,Base {0}
 appraisal_btn_min,Min {0}
+agewell_days,Aging: +{0} days per day (wine +1 / machine +{1})
+agewell_next,Next +1 day at quality +{0}%
