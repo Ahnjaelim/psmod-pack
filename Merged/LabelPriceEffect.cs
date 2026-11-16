@@ -5,8 +5,8 @@ using UnityEngine;
 namespace LabelPriceEffect
 {
     // 아이템 툴팁의 "[라벨] 슬쩍 할인 I" 줄에 가격 영향을 색과 퍼센트로 표시한다.
-    //   가격을 올리는 라벨  -> 빨강  "[라벨] 고급형 (+20%)"
-    //   가격을 내리는 라벨  -> 초록  "[라벨] 슬쩍 할인 I (-10%)"
+    //   남의 물건: 가격을 올리는 라벨 -> 빨강, 내리는 라벨 -> 초록 (살 때 기준)
+    //   내 물건:   가격을 올리는 라벨 -> 초록, 내리는 라벨 -> 빨강 (팔 때 기준)
     //   영향 없음           -> 원래 색, 퍼센트 생략
     // 퍼센트는 게임이 가격 계산에 쓰는 ItemFeature.GetCurrentValueMod() (가격 × (1 + n/100)) 그대로.
     // "[라벨]" 머리말 색(감정으로 진위 확인 시 초록/빨강)은 원본 규칙을 그대로 따른다.
@@ -26,10 +26,14 @@ namespace LabelPriceEffect
                     prefixColor = itemFeature.IsFeatureMatch() ? RenderHandler.ColorPalette.LightGreen : RenderHandler.ColorPalette.LightRed;
 
                 int mod = itemFeature.GetCurrentValueMod();
+                // 남의 물건: 비싸지면 사는 쪽 손해(빨강). 내 물건: 비싸지면 파는 쪽 이득(초록) → 색 반대.
+                GameItem owner = itemFeature.GetParentItem();
+                bool mine = owner != null && GeneralHelper.IsItemOwned(owner);
+                bool good = mine ? mod > 0 : mod < 0;
                 RenderHandler.ColorPalette textColor =
-                    mod > 0 ? RenderHandler.ColorPalette.LightRed :
-                    mod < 0 ? RenderHandler.ColorPalette.Green :
-                    RenderHandler.ColorPalette.None;
+                    mod == 0 ? RenderHandler.ColorPalette.None :
+                    good ? RenderHandler.ColorPalette.Green :
+                    RenderHandler.ColorPalette.LightRed;
 
                 builder.Add(LocHelper.GetLocalizedMechanic("mech_label_tooltip_prefix") + " ", prefixColor);
                 builder.Add(itemFeature.GetBaseCurrentDisplay(), textColor);
