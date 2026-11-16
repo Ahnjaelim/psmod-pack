@@ -155,7 +155,24 @@ namespace AppraisalPresets
 
         private static void Add(string type, Func<HashSet<string>, int> fn, params Opt[] opts)
         {
+            SortByDelta(opts);
             _defs.Add((type, fn, opts));
+        }
+
+        // [카테고리] 안의 보기를 가격 영향 오름차순으로 (같으면 원래 순서 유지). 소제목 줄은 제자리.
+        private static void SortByDelta(Opt[] opts)
+        {
+            int i = 0;
+            while (i < opts.Length)
+            {
+                if (opts[i].Group == "#") { i++; continue; }
+                int start = i;
+                while (i < opts.Length && opts[i].Group != "#") i++;
+                var run = new List<(Opt o, int idx)>();
+                for (int k = start; k < i; k++) run.Add((opts[k], k));
+                run.Sort((a, b) => a.o.Delta != b.o.Delta ? a.o.Delta.CompareTo(b.o.Delta) : a.idx.CompareTo(b.idx));
+                for (int k = 0; k < run.Count; k++) opts[start + k] = run[k].o;
+            }
         }
 
         // ── 매 프레임 (UpdateAppraisalPanel postfix) ──
