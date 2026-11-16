@@ -133,6 +133,8 @@ internal static class Text
 		{ "keybind_quick_confront_tip", "Confront immediately when the inspection panel is open and at least one issue is selected" },
 		{ "keybind_quick_pin", "Quick pin" },
 		{ "keybind_quick_pin_tip", "Toggle pin on the hovered item; batch-toggles selected items while box-selecting" },
+		{ "keybind_select_all", "Select all (Ctrl + key)" },
+		{ "keybind_select_all_tip", "Ctrl + this key selects every item in the inventory under the mouse (same as box-selecting them)" },
 		{ "settings_section_machine", "Machines and power" },
 		{ "settings_machine_auto_battery", "Automatic battery replacement" },
 		{ "settings_machine_auto_battery_tip", "When a machine or tool battery cannot supply power, find a usable battery in the front/back counters, battery hub, chargers, storage areas and external machine storage, then put the old battery back where the new one came from" },

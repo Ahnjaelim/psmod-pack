@@ -187,6 +187,7 @@ internal static class QoLKeyBindings
 			EnsureBinding("pen_qol_quick_appraisal", (KeyCode)32, "keybind_quick_appraisal");
 			EnsureBinding("pen_qol_quick_confront", (KeyCode)32, "keybind_quick_confront");
 			EnsureBinding("pen_qol_quick_pin", (KeyCode)116, "keybind_quick_pin");
+			EnsureBinding("psmp_select_all", (KeyCode)97, "keybind_select_all");
 			ReloadSavedBindings();
 			MigrateFollowBindingConflict();
 			MigrateQuickSellToEnter();
@@ -202,6 +203,7 @@ internal static class QoLKeyBindings
 			EnsureOption("pen_qol_quick_appraisal", "keybind_quick_appraisal", "keybind_quick_appraisal_tip");
 			EnsureOption("pen_qol_quick_confront", "keybind_quick_confront", "keybind_quick_confront_tip");
 			EnsureOption("pen_qol_quick_pin", "keybind_quick_pin", "keybind_quick_pin_tip");
+			EnsureOption("psmp_select_all", "keybind_select_all", "keybind_select_all_tip");
 			QoLTabInputHandler.RefreshKeys();
 			Log.Debug("QoL keybindings registered");
 		}

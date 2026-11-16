@@ -93,3 +93,5 @@ keybind_quick_sell,빠른 판매 ("물건 N개 판매" 버튼)
 keybind_quick_sell_tip,손님이 원하는 물건을 카운터에 올려둔 상태에서 "물건 N개 판매" 버튼을 누릅니다. 기본 Enter.
 agewell_days,숙성: 하루 +{0}일 (와인 +1 · 숙성기 +{1})
 agewell_next,품질 +{0}% 되면 하루 +1일 더
+keybind_select_all,전체 선택 (Ctrl + 이 키)
+keybind_select_all_tip,Ctrl + 이 키: 마우스가 올라간 인벤토리의 아이템을 전부 선택 (드래그 박스 선택과 같음)
