@@ -23,20 +23,17 @@
     <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(GameManaged)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.AudioModule"><HintPath>$(GameManaged)\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(GameManaged)\UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(GameManaged)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(GameManaged)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <Target Name="CopyToMods" AfterTargets="Build">
     <ItemGroup>
       <LocFiles Include="$(MSBuildThisFileDirectory)Localization\**\*" />
-      <TexFiles Include="$(MSBuildThisFileDirectory)Textures\**\*" />
     </ItemGroup>
     <MakeDir Directories="$(ModOut)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOut)" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)manifest.xml" DestinationFolder="$(ModOut)" />
     <Copy SourceFiles="@(LocFiles)" DestinationFolder="$(ModOut)\Localization\%(RecursiveDir)" />
-    <Copy SourceFiles="@(TexFiles)" DestinationFolder="$(ModOut)\Textures\%(RecursiveDir)" />
   </Target>
 
 </Project>
