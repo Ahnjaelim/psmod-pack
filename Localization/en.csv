@@ -139,3 +139,6 @@ keybind_select_all,Select all (Ctrl + key)
 keybind_select_all_tip,Ctrl + this key selects every item in the inventory under the mouse (same as box-selecting them)
 printer_chip,Chip: {0}
 printer_chip_none,Chip: none
+progress_eta_tonight,Finishes tonight
+progress_eta_days,Finishes in {0} days
+progress_eta_stopped,Progress stopped (speed 0)

@@ -15,6 +15,13 @@ namespace BlockProgressBar
         private static bool Prefix(RichTextBuilder __instance, ref RichTextBuilder __result, float ratio, int length,
             RenderHandler.ColorPalette color, RenderHandler.ColorPalette backgroundColor, string end, bool addFullLength, bool bold)
         {
+            if (MachineProgressMove.State.Suppress)
+            {
+                // 진행 막대가 "진행 속도" 밑으로 옮겨진 기계: 원래 자리의 막대와 다음 "현재/목표" 줄은 그리지 않는다.
+                MachineProgressMove.State.SkipLine = true;
+                __result = __instance;
+                return false;
+            }
             try
             {
                 if (length <= 0) return true;
