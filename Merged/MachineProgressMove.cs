@@ -41,6 +41,15 @@ namespace MachineProgressMove
 
                 // 넣을 줄을 임시 빌더에 만든다: [막대] 현재/목표 (n%) ⏎ 완료까지 N일 ⏎
                 var tmp = new RichTextBuilder(builder.maxCharWidth);
+                bool dna = item.IsTag("DNA_MANIPULATOR_TAG");
+                if (dna)
+                {
+                    // DNA 조작기: "형질 추출 중 / 형질 이식 중" 상태를 막대 위로
+                    string op = item.GetTagReadonly("DNA_OPERATION_STRING").GetString();
+                    PlantTrait trait = PlantTraitRegistry.Get(item.GetTagReadonly("DNA_OPERATION_TRAIT_STRING").GetString());
+                    string status = op == "apply" && trait != null ? PlantGeneticsText.StatusApplying(trait.displayName) : PlantGeneticsText.StatusExtracting();
+                    tmp.AddLine(status, true, RenderHandler.ColorPalette.LightGreen);
+                }
                 float ratio = Mathf.Clamp01((float)cur / target);
                 tmp.AddProgressBar(ratio, 10, RenderHandler.ColorPalette.LightGreen, RenderHandler.ColorPalette.VeryDarkGreen, null, " ");
                 tmp.AddLine(cur + "/" + target + " (" + Mathf.FloorToInt(ratio * 100f) + "%)", true, RenderHandler.ColorPalette.LightGreen);
@@ -55,6 +64,8 @@ namespace MachineProgressMove
                             : State.L("progress_eta_days", "Finishes in {0} days", nights),
                         true, RenderHandler.ColorPalette.LightCyan);
                 }
+                if (dna)
+                    tmp.AddLine(PlantGeneticsText.SuccessChance(item.GetTagReadonly("DNA_OPERATION_SUCCESS_INT").GetInt()), true, RenderHandler.ColorPalette.LightCyan);
                 tmp.NextLine();
 
                 var main = Traverse.Create(builder).Field("slices").GetValue() as IList;
@@ -111,6 +122,33 @@ namespace MachineProgressMove
         {
             State.Suppress = false;
             State.SkipLine = false;
+        }
+    }
+
+    // DNA 조작기 작업 중: 상태/막대/성공 확률은 위로 옮겼으므로 원래 함수에서는 디스크 자동 배출 줄만 그린다.
+    // (원래 함수는 작업 중이면 이 부분 뒤에 상태+막대+성공 확률을 그리고 바로 return 한다)
+    [HarmonyPatch(typeof(MachineDnaManipulator), nameof(MachineDnaManipulator.CreateMachineTooltip))]
+    [HarmonyPriority(Priority.First)]
+    internal static class DnaWorkingPatch
+    {
+        private static bool Prefix(RichTextBuilder builder, GameItem item)
+        {
+            try
+            {
+                if (builder == null || item == null || !ReferenceEquals(item, State.Moved) || !item.IsTag("DNA_MANIPULATOR_TAG")) return true;
+                if (!MachineProgressHelper.GetMachineState(item).Equals("STATE_WORKING")) return true;
+                builder.AddLine(" ");
+                bool eject = MachineDnaManipulator.IsEjectEnabled(item);
+                builder.AddLine(eject ? PlantGeneticsText.EjectOn() : PlantGeneticsText.EjectOff(), true,
+                    eject ? RenderHandler.ColorPalette.LightGreen : RenderHandler.ColorPalette.LightOrange);
+                builder.AddLine(PlantGeneticsText.EjectHint(), true, RenderHandler.ColorPalette.Gray);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[MachineProgressMove] " + ex.Message);
+                return true;
+            }
         }
     }
 
