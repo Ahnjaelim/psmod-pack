@@ -145,3 +145,6 @@ progress_eta_stopped,Progress stopped (speed 0)
 vge_chip_name,3D Printer Chip (x{0} {1})
 vge_frame_name,{0} Frame
 vge_frame_chip_name,{0} Frame 3D Printer Chip
+gunsmith_cal_name,Gunsmith
+gunsmith_cal_today,Retired gunsmith: visiting today
+gunsmith_cal_next,Retired gunsmith: day {0} (in {1} days)

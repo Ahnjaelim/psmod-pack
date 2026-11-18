@@ -60,10 +60,17 @@ namespace CalendarTodayTooltip
         {
             StoreEventManager manager = StoreStation.Instance?.storeEventManager;
             List<StoreEvent> events = manager?.GetActiveEventOnDay(today);
-            if (events == null || events.Count == 0) return null;
+            bool gunsmith = GunsmithCalendar.Gunsmith.Unlocked && GunsmithCalendar.Gunsmith.VisitsOn(today);
+            if ((events == null || events.Count == 0) && !gunsmith) return null;
             var sb = new StringBuilder("<size=80%>");
             var seen = new HashSet<StoreEvent>();
             bool first = true;
+            if (gunsmith)
+            {
+                sb.Append("- ").Append(GunsmithCalendar.Gunsmith.Name());
+                first = false;
+            }
+            if (events == null) events = new List<StoreEvent>();
             foreach (StoreEvent ev in events)
             {
                 if (ev == null || !seen.Add(ev)) continue;
@@ -113,6 +120,10 @@ namespace CalendarTodayTooltip
             var sb = new StringBuilder();
             sb.Append("<size=85%>");
             sb.Append("<b>").Append(PenLabelerAssist.Text.Get("calendar_today_header")).Append("</b>");
+
+            string gunsmithLine = GunsmithCalendar.Gunsmith.SummaryLine(today);
+            if (!string.IsNullOrEmpty(gunsmithLine))
+                sb.Append('\n').Append("<color=#b07a3a>").Append(gunsmithLine).Append("</color>");
 
             if (events == null || events.Count == 0)
             {

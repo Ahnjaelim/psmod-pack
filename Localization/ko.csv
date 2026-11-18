@@ -103,3 +103,6 @@ progress_eta_stopped,진행 멈춤 (속도 0)
 vge_chip_name,3D 프린터 칩 (x{0} {1})
 vge_frame_name,{0} 프레임
 vge_frame_chip_name,{0} 프레임 3D 프린터 칩
+gunsmith_cal_name,총기 장인
+gunsmith_cal_today,총기 장인: 오늘 방문
+gunsmith_cal_next,총기 장인: {0}일 ({1}일 후)
