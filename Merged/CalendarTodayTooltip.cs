@@ -60,14 +60,15 @@ namespace CalendarTodayTooltip
         {
             StoreEventManager manager = StoreStation.Instance?.storeEventManager;
             List<StoreEvent> events = manager?.GetActiveEventOnDay(today);
-            bool gunsmith = GunsmithCalendar.Gunsmith.Unlocked && GunsmithCalendar.Gunsmith.VisitsOn(today);
-            if ((events == null || events.Count == 0) && !gunsmith) return null;
+            List<string> visitors = GunsmithCalendar.Visitors.On(today);
+            if ((events == null || events.Count == 0) && visitors.Count == 0) return null;
             var sb = new StringBuilder("<size=80%>");
             var seen = new HashSet<StoreEvent>();
             bool first = true;
-            if (gunsmith)
+            foreach (string v in visitors)
             {
-                sb.Append("- ").Append(GunsmithCalendar.Gunsmith.Name());
+                if (!first) sb.Append('\n');
+                sb.Append("- ").Append(v);
                 first = false;
             }
             if (events == null) events = new List<StoreEvent>();
@@ -121,7 +122,10 @@ namespace CalendarTodayTooltip
             sb.Append("<size=85%>");
             sb.Append("<b>").Append(PenLabelerAssist.Text.Get("calendar_today_header")).Append("</b>");
 
-            string gunsmithLine = GunsmithCalendar.Gunsmith.SummaryLine(today);
+            List<string> visitors = GunsmithCalendar.Visitors.On(today);
+            if (visitors.Count > 0)
+                sb.Append('\n').Append("<color=#b07a3a>").Append(PenLabelerAssist.Text.Get("visitor_cal_today", string.Join(", ", visitors.ToArray()))).Append("</color>");
+            string gunsmithLine = GunsmithCalendar.Visitors.GunsmithNextLine(today);
             if (!string.IsNullOrEmpty(gunsmithLine))
                 sb.Append('\n').Append("<color=#b07a3a>").Append(gunsmithLine).Append("</color>");
 

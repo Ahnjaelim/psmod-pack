@@ -117,3 +117,30 @@ modname_local.hologram_trade,홀로그램 거래 패널
 modname_sfi.storageappearance,보관함 꾸미기
 modname_ps_random_portrait_library_03,일반 NPC 초상화 확장
 modname_sfi.vanillamachineanimations,바닐라 기계 작동 애니메이션
+visitor_cal_events,이벤트
+visitor_cal_visitors,방문 손님
+visitor_cal_today,오늘 방문: {0}
+visitor_retired_chemist,은퇴한 화학자
+visitor_retired_aquafarmer,은퇴한 양식업자
+visitor_retired_junker,은퇴한 고물상
+visitor_retired_water,은퇴한 물장수
+visitor_retired_gunsmith,은퇴한 총기 장인
+visitor_retired_farmer,은퇴한 농부
+visitor_retired_winemaker,은퇴한 와인 제조자
+visitor_retired_rancher,은퇴한 목장주
+visitor_supplier,공급업자
+visitor_inventor,발명가
+visitor_flexi_buyer,아무거나 사는 손님
+visitor_business_permit,사업 허가 담당
+visitor_sec_surplus,보안대 잉여품 상인
+visitor_sec_requisition,보안대 징발관
+visitor_ll_rare,하층 희귀품 상인 (확률)
+visitor_thief,도둑
+visitor_rev_quartermaster,혁명군 보급관
+visitor_rev_raider,혁명군 약탈자
+visitor_cartel_weekly,카르텔 담당 (주간)
+visitor_cartel_checkin,카르텔 담당 (점검)
+visitor_shady_farmer,수상한 농부
+visitor_dealer,딜러
+visitor_blackmailer,협박범
+visitor_scalper,암표상
