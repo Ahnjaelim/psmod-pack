@@ -38,6 +38,13 @@ public class PenLabelerAssistMod : IMod
 		{
 			Log.Warn("gunsmith extension init failed: " + exG.Message);
 		}
+		try
+		{
+			ModNameTranslate.Translator.ApplyAll();
+		}
+		catch
+		{
+		}
 	}
 
 	public void OnEnable()

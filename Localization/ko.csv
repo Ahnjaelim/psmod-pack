@@ -106,3 +106,14 @@ vge_frame_chip_name,{0} 프레임 3D 프린터 칩
 gunsmith_cal_name,총기 장인
 gunsmith_cal_today,총기 장인: 오늘 방문
 gunsmith_cal_next,총기 장인: {0}일 ({1}일 후)
+modname_WaterTankLiquidVisuals,물탱크 수위 표시
+modname_WineBerryQualityBadges,와인베리 품질 배지
+modname_asteroid_crate_reveal,상자 개봉 연출
+modname_MachineStatusBadges,기계 상태 배지
+modname_item_durability_bars,아이템 내구도 표시
+modname_asteroid_in_game_mod_settings,게임 내 모드 설정
+modname_keycard_stack,키카드 겹치기
+modname_local.hologram_trade,홀로그램 거래 패널
+modname_sfi.storageappearance,보관함 꾸미기
+modname_ps_random_portrait_library_03,일반 NPC 초상화 확장
+modname_sfi.vanillamachineanimations,바닐라 기계 작동 애니메이션

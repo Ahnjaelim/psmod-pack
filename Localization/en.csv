@@ -148,3 +148,14 @@ vge_frame_chip_name,{0} Frame 3D Printer Chip
 gunsmith_cal_name,Gunsmith
 gunsmith_cal_today,Retired gunsmith: visiting today
 gunsmith_cal_next,Retired gunsmith: day {0} (in {1} days)
+modname_WaterTankLiquidVisuals,Water Tank Liquid Visuals
+modname_WineBerryQualityBadges,Wine Berry Quality Badges
+modname_asteroid_crate_reveal,Unbox Moment
+modname_MachineStatusBadges,Machine Status Badges
+modname_item_durability_bars,Visible Item Durability
+modname_asteroid_in_game_mod_settings,In-Game Mod Settings
+modname_keycard_stack,Keycard Stack
+modname_local.hologram_trade,Hologram Trade Panel
+modname_sfi.storageappearance,Storage Bay Appearance
+modname_ps_random_portrait_library_03,Generic NPC Portrait Expansion
+modname_sfi.vanillamachineanimations,Vanilla Machine Animations
