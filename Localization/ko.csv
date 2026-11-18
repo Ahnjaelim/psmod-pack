@@ -95,3 +95,5 @@ agewell_days,숙성: 하루 +{0}일 (와인 +1 · 숙성기 +{1})
 agewell_next,품질 +{0}% 되면 하루 +1일 더
 keybind_select_all,전체 선택 (Ctrl + 이 키)
 keybind_select_all_tip,Ctrl + 이 키: 마우스가 올라간 인벤토리의 아이템을 전부 선택 (드래그 박스 선택과 같음)
+printer_chip,칩: {0}
+printer_chip_none,칩: 없음
