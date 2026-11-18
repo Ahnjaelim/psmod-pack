@@ -100,3 +100,6 @@ printer_chip_none,칩: 없음
 progress_eta_tonight,오늘 밤 완료
 progress_eta_days,완료까지 {0}일
 progress_eta_stopped,진행 멈춤 (속도 0)
+vge_chip_name,3D 프린터 칩 (x{0} {1})
+vge_frame_name,{0} 프레임
+vge_frame_chip_name,{0} 프레임 3D 프린터 칩

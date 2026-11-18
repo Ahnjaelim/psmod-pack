@@ -142,3 +142,6 @@ printer_chip_none,Chip: none
 progress_eta_tonight,Finishes tonight
 progress_eta_days,Finishes in {0} days
 progress_eta_stopped,Progress stopped (speed 0)
+vge_chip_name,3D Printer Chip (x{0} {1})
+vge_frame_name,{0} Frame
+vge_frame_chip_name,{0} Frame 3D Printer Chip
