@@ -36,7 +36,6 @@ internal static class Text
 		{ "visitor_retired_rancher", "Retired rancher" },
 		{ "visitor_supplier", "Supplier" },
 		{ "visitor_inventor", "Inventor" },
-		{ "visitor_flexi_buyer", "Flexible buyer" },
 		{ "visitor_business_permit", "Business permit officer" },
 		{ "visitor_sec_surplus", "SEC surplus merchant" },
 		{ "visitor_sec_requisition", "SEC requisition officer" },

@@ -4,7 +4,6 @@ using System.Text;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace GunsmithCalendar
@@ -12,7 +11,6 @@ namespace GunsmithCalendar
     // 정기 방문 손님을 달력에 표시한다. 조건은 게임 StoreClientManager 의 요일(날짜 % 7) 규칙을 그대로 옮겼다.
     // (0=일 1=월 2=화 3=수 4=목 5=금 6=토). 해금 여부는 "지금" 기준으로 판단한다.
     //  - 큰 달력(일정 화면) 날짜 칸 안쪽: 이벤트 아래에 배경 없이 손님 이름. 자리가 모자라면 "+N"
-    //  - 날짜 칸에 마우스를 올리면 그날 이벤트 + 방문 손님 전체를 툴팁으로
     //  - 벽 달력 화면/툴팁: CalendarTodayTooltip 이 오늘 방문 손님을 덧붙인다
     internal static class Visitors
     {
@@ -41,7 +39,6 @@ namespace GunsmithCalendar
             // 누구나
             new Def { Key = "supplier",          When = d => d % 7 == 0 },
             new Def { Key = "inventor",          When = d => d >= 12 && d % 7 == 5 && !Perk("LLAVOIDED") },
-            new Def { Key = "flexi_buyer",       When = d => d % 7 == 6 || (d >= 50 && d % 7 == 3) },
             new Def { Key = "business_permit",   When = d => d >= 38 && d % 7 == 3 && !PS.hasBusinessPermit },
             // 평판 퍽
             new Def { Key = "sec_surplus",       When = d => d % 7 == 3 && Perk("SEC_SURPLUS") },
@@ -101,9 +98,6 @@ namespace GunsmithCalendar
             {
                 if (__instance == null || __instance.layoutGroup == null) return;
                 List<string> visitors = Visitors.On(dayNumber);
-
-                var hover = __instance.GetComponent<DayHover>() ?? __instance.gameObject.AddComponent<DayHover>();
-                hover.Set(__instance, dayNumber, events, visitors);
 
                 Transform parent = __instance.layoutGroup.transform;
                 Transform existing = parent.Find(LabelName);
@@ -199,90 +193,4 @@ namespace GunsmithCalendar
         }
     }
 
-    // 날짜 칸에 마우스를 올리면 달력 화면의 특성 툴팁 창을 빌려 그날 이벤트/방문 손님 전체를 보여준다.
-    internal class DayHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
-    {
-        private string title;
-        private string body;
-        private bool showing;
-
-        internal void Set(CalendarDayElement day, int dayNumber, List<StoreEvent> events, List<string> visitors)
-        {
-            title = LocHelper.GetLocalizedMechanic("mech_day_label", dayNumber);
-            var sb = new StringBuilder();
-            var seen = new HashSet<StoreEvent>();
-            if (events != null)
-                foreach (StoreEvent ev in events)
-                {
-                    if (ev == null || !seen.Add(ev)) continue;
-                    if (sb.Length == 0) sb.Append("<b>").Append(PenLabelerAssist.Text.Get("visitor_cal_events")).Append("</b>");
-                    sb.Append("\n- ").Append(CalendarTodayTooltip.StoreCalendarTooltipPatch.SafeName(ev));
-                }
-            if (visitors != null && visitors.Count > 0)
-            {
-                if (sb.Length > 0) sb.Append("\n\n");
-                sb.Append("<b>").Append(PenLabelerAssist.Text.Get("visitor_cal_visitors")).Append("</b>");
-                foreach (string v in visitors) sb.Append("\n- ").Append(v);
-            }
-            body = sb.ToString();
-            if (showing) Fill();
-        }
-
-        public void OnPointerEnter(PointerEventData eventData)
-        {
-            if (string.IsNullOrEmpty(body)) return;
-            try
-            {
-                showing = true;
-                Fill();
-                PerkUIController.Instance.ShowTooltip();
-                Follow();
-            }
-            catch
-            {
-                showing = false;
-            }
-        }
-
-        public void OnPointerExit(PointerEventData eventData) => Hide();
-
-        private void OnDisable() => Hide();
-
-        private void Update()
-        {
-            if (showing) Follow();
-        }
-
-        private void Fill()
-        {
-            PerkUIController p = PerkUIController.Instance;
-            if (p == null) return;
-            if (p.startingPerkTooltipTitle != null) ScriptFontSwap.Apply(p.startingPerkTooltipTitle, title);
-            if (p.startingPerkTooltipDescription != null) ScriptFontSwap.Apply(p.startingPerkTooltipDescription, body);
-            if (p.startingPerkTooltipCost != null) p.startingPerkTooltipCost.text = "";
-            if (p.startingPerkTooltipIncompatible != null) p.startingPerkTooltipIncompatible.text = "";
-        }
-
-        private static void Follow()
-        {
-            PerkUIController p = PerkUIController.Instance;
-            if (p == null || p.startingPerkTooltip == null) return;
-            Vector3 pos = UIHelper.GetTooltipPositionSimple();
-            pos.z = p.startingPerkTooltip.transform.position.z;
-            p.startingPerkTooltip.transform.position = pos;
-        }
-
-        private void Hide()
-        {
-            if (!showing) return;
-            showing = false;
-            try
-            {
-                PerkUIController.Instance?.HideTooltip();
-            }
-            catch
-            {
-            }
-        }
-    }
 }
