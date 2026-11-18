@@ -1,6 +1,8 @@
 using System;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace GunsmithCalendar
 {
@@ -49,17 +51,55 @@ namespace GunsmithCalendar
     [HarmonyPatch(typeof(CalendarDayElement), nameof(CalendarDayElement.SetElement))]
     internal static class CalendarDayElementPatch
     {
+        private const string LabelName = "GunsmithVisitLabel";
+
+        // 날짜 칸 안쪽(이벤트 막대 아래)에 배경 없이 글자만 넣는다.
         private static void Postfix(CalendarDayElement __instance, int dayNumber)
         {
             try
             {
-                if (__instance == null || __instance.dayTMP == null || !Gunsmith.VisitsOn(dayNumber) || !Gunsmith.Unlocked) return;
-                __instance.dayTMP.text = (__instance.dayTMP.text ?? "") + " <size=75%><color=#b07a3a>" + Gunsmith.Name() + "</color></size>";
+                if (__instance == null || __instance.layoutGroup == null) return;
+                bool show = Gunsmith.VisitsOn(dayNumber) && Gunsmith.Unlocked;
+                Transform parent = __instance.layoutGroup.transform;
+                Transform existing = parent.Find(LabelName);
+                if (!show)
+                {
+                    if (existing != null) existing.gameObject.SetActive(false);
+                    return;
+                }
+                TextMeshProUGUI label = existing != null ? existing.GetComponent<TextMeshProUGUI>() : Create(__instance, parent);
+                if (label == null) return;
+                label.gameObject.SetActive(true);
+                label.transform.SetAsLastSibling();
+                ScriptFontSwap.Apply(label, Gunsmith.Name());
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("[GunsmithCalendar] " + ex.Message);
             }
+        }
+
+        private static TextMeshProUGUI Create(CalendarDayElement day, Transform parent)
+        {
+            var go = new GameObject(LabelName, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var label = go.AddComponent<TextMeshProUGUI>();
+            TextMeshProUGUI src = day.dayTMP;
+            if (src != null)
+            {
+                label.font = src.font;
+                label.fontSharedMaterial = src.fontSharedMaterial;
+                label.fontSize = Mathf.Max(8f, src.fontSize * 0.6f);
+            }
+            label.color = new Color32(0x6b, 0x45, 0x22, 0xff);
+            label.alignment = TextAlignmentOptions.Center;
+            label.enableWordWrapping = false;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.raycastTarget = false;
+            var le = go.AddComponent<LayoutElement>();
+            le.preferredHeight = label.fontSize * 1.4f;
+            le.minHeight = le.preferredHeight;
+            return label;
         }
     }
 }
