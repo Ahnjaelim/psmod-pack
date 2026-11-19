@@ -182,3 +182,11 @@ visitor_shady_farmer,Shady farmer
 visitor_dealer,Dealer
 visitor_blackmailer,Blackmailer
 visitor_scalper,Scalper
+keybind_force_save,Force save
+keybind_force_save_tip,Save the game right now instead of waiting for sleep. Blocked while outside / serving a customer / at night after closing
+force_save_done,Saved (day {0})
+force_save_failed,Save failed - see the log
+force_save_blocked_outside,Cannot save while outside
+force_save_blocked_client,Cannot save while serving a customer
+force_save_blocked_night,Cannot save at night after closing - it saves when you sleep
+force_save_blocked_gameover,Cannot save on the game over screen

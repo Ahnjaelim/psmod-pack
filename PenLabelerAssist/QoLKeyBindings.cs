@@ -29,6 +29,8 @@ internal static class QoLKeyBindings
 
 	public const string QuickPinId = "pen_qol_quick_pin";
 
+	public const string ForceSaveId = "pen_qol_force_save";
+
 	private static bool _registered;
 
 	public static KeyCode TabLeft => KeyBindHelper.Get("pen_qol_tab_left");
@@ -52,6 +54,8 @@ internal static class QoLKeyBindings
 	public static KeyCode QuickConfront => KeyBindHelper.Get("pen_qol_quick_confront");
 
 	public static KeyCode QuickPin => KeyBindHelper.Get("pen_qol_quick_pin");
+
+	public static KeyCode ForceSave => KeyBindHelper.Get("pen_qol_force_save");
 
 	public static bool IsBoundKeyDown(KeyCode key)
 	{
@@ -188,6 +192,7 @@ internal static class QoLKeyBindings
 			EnsureBinding("pen_qol_quick_confront", (KeyCode)32, "keybind_quick_confront");
 			EnsureBinding("pen_qol_quick_pin", (KeyCode)116, "keybind_quick_pin");
 			EnsureBinding("psmp_select_all", (KeyCode)97, "keybind_select_all");
+			EnsureBinding("pen_qol_force_save", (KeyCode)286, "keybind_force_save");
 			ReloadSavedBindings();
 			MigrateFollowBindingConflict();
 			MigrateQuickSellToEnter();
@@ -204,6 +209,7 @@ internal static class QoLKeyBindings
 			EnsureOption("pen_qol_quick_confront", "keybind_quick_confront", "keybind_quick_confront_tip");
 			EnsureOption("pen_qol_quick_pin", "keybind_quick_pin", "keybind_quick_pin_tip");
 			EnsureOption("psmp_select_all", "keybind_select_all", "keybind_select_all_tip");
+			EnsureOption("pen_qol_force_save", "keybind_force_save", "keybind_force_save_tip");
 			QoLTabInputHandler.RefreshKeys();
 			Log.Debug("QoL keybindings registered");
 		}

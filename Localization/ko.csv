@@ -140,3 +140,11 @@ visitor_shady_farmer,수상한 농부
 visitor_dealer,딜러
 visitor_blackmailer,협박범
 visitor_scalper,암표상
+keybind_force_save,강제 저장
+keybind_force_save_tip,자러 가지 않아도 지금 바로 저장합니다. 외출 중 / 손님 응대 중 / 마감 후 밤에는 저장 안 됨
+force_save_done,저장했습니다 ({0}일차)
+force_save_failed,저장 실패 - 로그를 확인하세요
+force_save_blocked_outside,외출 중에는 저장할 수 없습니다
+force_save_blocked_client,손님 응대 중에는 저장할 수 없습니다
+force_save_blocked_night,마감 후 밤에는 저장할 수 없습니다 (자면 저장됨)
+force_save_blocked_gameover,게임 오버 화면에서는 저장할 수 없습니다
