@@ -68,23 +68,6 @@ namespace GunsmithCalendar
             }
             return list;
         }
-
-        // 벽 달력 툴팁용: 총기 장인이 해금돼 있고 오늘이 아니면 다음 방문일 한 줄
-        internal static string GunsmithNextLine(int today)
-        {
-            try
-            {
-                if (PS == null || !(PS.IsGunsmithStart() || NetworkUpgrade.IsRetiredGunsmithUnlocked())) return null;
-            }
-            catch
-            {
-                return null;
-            }
-            if (today > 0 && today % 7 == 4) return null;
-            for (int d = Math.Max(today + 1, 1); d < today + 8; d++)
-                if (d % 7 == 4) return PenLabelerAssist.Text.Get("gunsmith_cal_next", d, d - today);
-            return null;
-        }
     }
 
     [HarmonyPatch(typeof(CalendarDayElement), nameof(CalendarDayElement.SetElement))]

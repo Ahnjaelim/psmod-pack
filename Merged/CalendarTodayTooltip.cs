@@ -125,9 +125,6 @@ namespace CalendarTodayTooltip
             List<string> visitors = GunsmithCalendar.Visitors.On(today);
             if (visitors.Count > 0)
                 sb.Append('\n').Append("<color=#b07a3a>").Append(PenLabelerAssist.Text.Get("visitor_cal_today", string.Join(", ", visitors.ToArray()))).Append("</color>");
-            string gunsmithLine = GunsmithCalendar.Visitors.GunsmithNextLine(today);
-            if (!string.IsNullOrEmpty(gunsmithLine))
-                sb.Append('\n').Append("<color=#b07a3a>").Append(gunsmithLine).Append("</color>");
 
             if (events == null || events.Count == 0)
             {
