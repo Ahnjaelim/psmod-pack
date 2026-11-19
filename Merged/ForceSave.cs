@@ -56,9 +56,23 @@ namespace ForceSave
             MapUIManager map = MapUIManager.Instance;
             if (map != null && (map.IsOutside || map.IsInTransit)) return "force_save_blocked_outside";
             if (store.storeState == PlayerStore.StoreState.CLOSED) return "force_save_blocked_night";
-            if (store.storeState == PlayerStore.StoreState.OPEN && (store.currentClientInstance != null || store.isClientArrived))
+            // isClientArrived 는 손님이 떠나도 다음 손님이 올 때까지 true 로 남으므로 쓰지 않는다.
+            // currentClientInstance 는 손님을 보낼 때(DismissCurrentClient) null 이 된다.
+            if (store.storeState == PlayerStore.StoreState.OPEN && (store.currentClientInstance != null || ClientWalking()))
                 return "force_save_blocked_client";
             return null;
+        }
+
+        private static bool ClientWalking()
+        {
+            try
+            {
+                return StoreClientMono.Instance != null && StoreClientMono.Instance.IsMoving();
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static void Notify(string text)
