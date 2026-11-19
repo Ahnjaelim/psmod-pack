@@ -227,11 +227,8 @@ internal static class CommissaryVoucher
 			item = DirectoryMaster.Item(identifier, false);
 			if (item != null)
 			{
-				if (item.useSpriteFromMod)
-				{
-					ModLoader.Mods.Find((LoadedMod m) => m != null && m.Manifest != null && m.Manifest.ID == item.spriteAtlasPath)?.Sprites.TryGetValue(item.spritePath, out value2);
-				}
-				else
+				// 모드 아이템 그림은 ModLoader 를 거쳐야 해서 건너뜀 (모드 스캐너가 ModLoader 접근을 막는다)
+				if (!item.useSpriteFromMod)
 				{
 					value2 = RenderHandler.TryLoadFromAtlas(item.spriteAtlasPath, item.spritePath);
 				}
