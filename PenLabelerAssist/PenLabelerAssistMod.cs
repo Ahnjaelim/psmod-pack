@@ -247,6 +247,7 @@ public class PenLabelerAssistMod : IMod
 
 	private void OnGameLoadedLate()
 	{
+		ForceSave.LoadFix.OnGameLoadedLate();
 		try
 		{
 			Assist.SetGameReady(ready: true);

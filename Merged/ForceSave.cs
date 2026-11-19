@@ -12,6 +12,32 @@ namespace ForceSave
     //  - 영업 마감 후 밤(CLOSED) (게임이 이 상태로 저장하는 일이 없어서 불러온 뒤 동작이 보장되지 않음)
     //  - 게임 오버 화면
     // 영업 중 저장 → 불러오면 오늘 남은 손님 대기열은 비어 있다(대기열은 저장되지 않음).
+    // 게임은 원래 아침 상태로만 불러오므로 셔터가 항상 닫힌 모습으로 시작한다.
+    // 영업 중(OPEN)에 강제 저장한 세이브를 불러오면 셔터를 열린 모습으로 맞춘다 (닫힌 채면 셔터 버튼이 반대로 동작해 보임).
+    internal static class LoadFix
+    {
+        internal static void OnGameLoadedLate()
+        {
+            try
+            {
+                if (PlayerStore.Instance == null || PlayerStore.Instance.storeState != PlayerStore.StoreState.OPEN) return;
+                StoreShutterButton shutter = StoreShutterButton.Instance;
+                if (shutter == null) return;
+                var closed = Traverse.Create(shutter).Field("isClosed");
+                if (closed.GetValue() is bool b && b)
+                {
+                    closed.SetValue(false);
+                    Traverse.Create(shutter).Field("elapsedTime").SetValue(0f);
+                    Debug.Log("[ForceSave] loaded an OPEN-state save: shutter set to open");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[ForceSave] load fix: " + ex.Message);
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(MapUIManager), "Update")]
     internal static class ForceSaveKeyPatch
     {
