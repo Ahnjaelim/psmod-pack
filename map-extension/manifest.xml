@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod>
+  <ID>map-extension</ID>
+  <Name>지도 확장</Name>
+  <Author>me</Author>
+  <ModVersion>0.14.4</ModVersion>
+  <Description>Replaces the after-hours outing card list with a city map. Click a location marker to select it, double-click to travel.</Description>
+  <Assemblies>
+    <Assembly>MapExtension.dll</Assembly>
+  </Assemblies>
+  <Capabilities/>
+</Mod>

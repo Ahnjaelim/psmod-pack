@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod>
+  <ID>korean-patch</ID>
+  <Name>한국어 패치</Name>
+  <Author>me</Author>
+  <ModVersion>0.1.2</ModVersion>
+  <Description>Korean display font swap: uses the Mulmaru pixel font for the display (Lubrifont) and sci-fi (Tektur) font roles in Korean. Body text keeps the normal Korean font. Works alongside the Korean Translation mod.</Description>
+  <Assemblies>
+    <Assembly>KoreanPatch.dll</Assembly>
+  </Assemblies>
+  <Capabilities/>
+</Mod>
