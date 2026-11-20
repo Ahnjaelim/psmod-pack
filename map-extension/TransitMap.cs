@@ -196,6 +196,7 @@ namespace MapExtension
         {
             float x = p.x * AreaW, y = p.y * AreaH;
             RectTransform box = NewRect(root.transform, "Marker_" + loc.Id, x - 110f, y - 18f, 220f, 72f);
+            ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
             marker.location = loc;
             marker.locked = locked;
@@ -234,6 +235,7 @@ namespace MapExtension
 
         // ---- 미확인 장소: 앞으로 만들 수색처 자리 (key / 실제 이름 / 단계 / 위치). 만들면 FarmLocations 로 옮기고 여기서 뺀다 ----
         private const string UnknownName = "미확인 장소";
+        private const float UnknownAlpha = 0.2f;
         private const string UnknownDesc = "아직 아무도 확인하지 않은 곳. 높은 곳에서 내려다보면 뭔가 보일지도 모른다.";
         internal static readonly (string key, string name, int tier, Vector2 pos)[] UnknownSpots =
         {
@@ -265,6 +267,7 @@ namespace MapExtension
         {
             float x = p.x * AreaW, y = p.y * AreaH;
             RectTransform box = NewRect(root.transform, "Locked_" + name, x - 110f, y - 18f, 220f, 72f);
+            ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
             marker.infoOnly = true;
             marker.tipTitle = name;
@@ -276,6 +279,12 @@ namespace MapExtension
             if (icon != null) SetIcon(marker.inner, icon);
             marker.label = NewText(box, "Label", 0f, 40f, 220f, 30f, 20f, Unavailable, TextAlignmentOptions.Center);
             ScriptFontSwap.Apply(marker.label, name);
+            if (icon == "unknown")
+            {
+                // 미확인 장소는 희미하게
+                Color ic = marker.inner.color; ic.a = UnknownAlpha; marker.inner.color = ic;
+                Color lc = marker.label.color; lc.a = UnknownAlpha; marker.label.color = lc;
+            }
             infoMarkers.Add(marker);
         }
 
@@ -292,6 +301,7 @@ namespace MapExtension
         {
             float x = p.x * AreaW, y = p.y * AreaH;
             RectTransform box = NewRect(root.transform, "Marker_home", x - 110f, y - 18f, 220f, 72f);
+            ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
             marker.isHome = true;
             var hit = box.gameObject.AddComponent<Image>();
@@ -374,13 +384,19 @@ namespace MapExtension
             infoBg.sizeDelta = new Vector2(TipW - TipLine * 2f, h - TipLine * 2f);
             infoBody.rectTransform.sizeDelta = new Vector2(TipW - 28f, Mathf.Max(bodyH, 1f));
 
-            // 마커 상자: 왼쪽 위 (ax, -ay), 크기 220x72 (네모 36 + 이름표)
+            // 마커의 실제 화면 영역 (축소 반영) → 지도(root) 좌표. root 는 왼쪽 위 기준이라 아래쪽이 -y
             var m = (RectTransform)anchor.transform;
-            float cx = m.anchoredPosition.x + 110f;
-            float top = -m.anchoredPosition.y;
+            var wc = new Vector3[4];
+            m.GetWorldCorners(wc);
+            Vector3 bl = root.transform.InverseTransformPoint(wc[0]);
+            Vector3 tl = root.transform.InverseTransformPoint(wc[1]);
+            Vector3 tr = root.transform.InverseTransformPoint(wc[2]);
+            float cx = (tl.x + tr.x) * 0.5f;
+            float top = -tl.y;
+            float bottom = -bl.y;
             float x = Mathf.Clamp(cx - TipW * 0.5f, 6f, AreaW - TipW - 6f);
             float y = top - h - 8f;
-            if (y < 6f) y = top + 72f + 8f;
+            if (y < 6f) y = bottom + 8f;
             y = Mathf.Clamp(y, 6f, AreaH - h - 6f);
             infoRect.anchoredPosition = new Vector2(x, -y);
         }
@@ -509,6 +525,18 @@ namespace MapExtension
             rt.anchoredPosition = new Vector2(x, -y);
             rt.sizeDelta = new Vector2(w, h);
             return rt;
+        }
+
+        // ---- 마커 크기: 아이콘 가운데를 기준으로 줄인다 (위치는 그대로) ----
+        private const float MarkerScale = 0.7f;
+
+        private static void ScaleMarker(RectTransform box)
+        {
+            // 상자(220x72) 안 아이콘 가운데 = (110, 24) → 그 점을 피벗으로 옮기고 같은 자리에 둔 뒤 축소
+            Vector2 tl = box.anchoredPosition; // 왼쪽 위 (피벗 0,1)
+            box.pivot = new Vector2(110f / 220f, 1f - 24f / 72f);
+            box.anchoredPosition = tl + new Vector2(110f, -24f);
+            box.localScale = new Vector3(MarkerScale, MarkerScale, 1f);
         }
 
         // ---- 지도 아이콘 (Map/icon_<key>.png: 검은 실루엣 → 불러올 때 흰색으로 바꿔서 Image.color 로 색칠) ----

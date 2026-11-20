@@ -169,3 +169,5 @@
 - 0.15.0: 미확인 장소 19곳 (TransitMap.UnknownSpots: key/실제 이름/단계/위치). icon_unknown 회색, 툴팁만. 만들면 FarmLocations 로 옮기고 목록에서 뺀다
 - 0.16.0: 팝업(수색 확인, 전당포로 돌아가기)을 폐품 수집 창(UIScavengingPanel) 복제 스타일로 (StyledDialog). 게임 스크립트 제거 후 Button 재연결, 실패 시 기본 확인 창
 - 0.16.1: 폐품 수집 창 복제 팝업 되돌림 (보기 이상함) → 기본 확인 창. StyledDialog 삭제
+- 0.16.2: 미확인 장소 아이콘/라벨 투명도 0.2
+- 0.16.3: 지도 마커(아이콘+라벨) 0.7배 (아이콘 가운데 기준 축소, MarkerScale). 툴팁 위치는 실제 마커 영역 기준
