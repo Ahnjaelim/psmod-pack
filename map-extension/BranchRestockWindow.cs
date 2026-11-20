@@ -377,7 +377,24 @@ namespace MapExtension
             }
             entries = list;
             building = false;
+            byName = null;
+            try { BranchMonitor.Refresh(); } catch { } // 기록 표 아이템 그림 다시 그리기
             Debug.Log("[MapExtension] item index: " + list.Count + " items");
+        }
+
+        // 표시 이름이 정확히 같은 아이템 ID (첫 번째). 목록이 아직 없으면 null
+        private static Dictionary<string, string> byName;
+
+        internal static string IdByName(string name)
+        {
+            if (entries == null || string.IsNullOrEmpty(name)) return null;
+            if (byName == null)
+            {
+                byName = new Dictionary<string, string>();
+                foreach (var (id, n) in entries)
+                    if (!string.IsNullOrEmpty(n) && !byName.ContainsKey(n)) byName[n] = id;
+            }
+            return byName.TryGetValue(name, out string r) ? r : null;
         }
 
         // 이름(또는 ID)에 검색어가 들어간 것. 이름이 검색어로 시작하는 것 먼저

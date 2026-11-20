@@ -2,13 +2,15 @@ using System;
 using System.Globalization;
 using System.Text;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Localization.Settings;
 
 namespace ValueTooltip
 {
     // 아이템 기본 툴팁의 가치 줄을 정리한다.
     //   원본: "추정 가치: 15, 기본 가치: 25" / "구매가: 11"
-    //   변경:  현재가: 15 (+4 이득)
+    //   변경:  15 (+4 이득)          <- 첫 줄: 노란색, 강조 폰트(장식용 역할 폰트 = 한국어 패치면 물마루), 조금 크게
     //          칸당 가치: 7.5
     //          구매가: 11 (기본가: 25)   <- 흐리게
     //
@@ -79,6 +81,16 @@ namespace ValueTooltip
         // 게임의 크레딧 아이콘 (TMP 스프라이트 "c", tint=1 이라 글자색을 따라감). 가격 표시에 게임이 쓰는 것과 같은 아이콘.
         private static string Credit => GeneralHelper.CreditIcon();
         private const string MainColor = "#ffffff";
+        private const string PriceColor = "#f2d36b";
+        private const string PriceSize = "132%";
+
+        // 블록 줄 구분자. 게임 RichTextBuilder 는 한 AddLine 의 글자 수를 줄바꿈과 상관없이 통째로 세서,
+        // 세 줄을 '\n' 으로 이으면 길이 초과로 엉뚱한 곳(구매가 줄 중간)을 끊는다.
+        // 그래서 이 문자로 이어 두고, AddLinePatch 가 AddLine 을 줄마다 따로 부르게 나눈다.
+        internal const char LineSep = '\u001F';
+        private const string PriceIconSize = "125%";     // 크레딧 아이콘: 강조 숫자 높이에 맞춤
+        private const string PriceIconColor = "#f2c440"; // 아이콘 그림이 밝아서 숫자보다 조금 진하게 줘야 같은 노랑으로 보임
+        private const string CreditGap = "0.12em";
         private const string DimColor = "#8a8f94";
         private const string GoodColor = "#8fc46a";
         private const string BadColor = "#d9695f";
@@ -96,9 +108,16 @@ namespace ValueTooltip
             // 앞의 14px 간격 공백과 줄을 분리. 그대로 두면 간격이 너무 넓어서 이 줄바꿈은 높이 0 (14px 간격 줄만 남김).
             sb.Append("<line-height=0%>").Append('\n').Append("</line-height>");
 
-            // 1) 현재가: 15 (+4 이득)
-            sb.Append("<color=").Append(MainColor).Append('>')
-              .Append(Credit).Append(" ").Append(T("value_current")).Append(": ").Append(Num(est)).Append("</color>");
+            // 1) 15 (+4 이득) — "현재가:" 글자 없이 노란 강조 숫자
+            bool emph = EmphFont.Available();
+            sb.Append("<color=").Append(PriceColor).Append('>');
+            if (emph) sb.Append("<font=\"").Append(EmphFont.TagName).Append("\">");
+            sb.Append("<size=").Append(PriceSize).Append('>').Append(Num(est)).Append("</size>");
+            if (emph) sb.Append("</font>");
+            // 크레딧 아이콘은 강조 폰트 밖에서 (강조 폰트 안이면 그 폰트 기준으로 작게 그려짐), 숫자 높이에 맞춰 키우고 간격은 좁게
+            sb.Append("<space=").Append(CreditGap).Append("><color=").Append(PriceIconColor).Append("><size=").Append(PriceIconSize).Append('>')
+              .Append(Credit).Append("</size></color>");
+            sb.Append("</color>");
             if (bought != 0)
             {
                 double profit = est - bought;
@@ -126,19 +145,20 @@ namespace ValueTooltip
             if (cells > 0)
             {
                 double per = est / cells;
-                sb.Append('\n').Append("<color=").Append(MainColor).Append('>')
-                  .Append(Credit).Append(" ").Append(T("value_per_cell")).Append(": ")
+                sb.Append(LineSep).Append("<color=").Append(MainColor).Append('>')
+                  .Append(T("value_per_cell")).Append(": ")
                   .Append(per >= 100 ? Num(per) : per.ToString("0.#", CultureInfo.InvariantCulture))
+                  .Append(" ").Append(Credit)
                   .Append("</color>");
             }
 
             // 3) 구매가: 11 (기본가: 25)   — 흐리게. 구매 기록이 없으면 기본가만.
-            sb.Append('\n').Append("<color=").Append(DimColor).Append('>');
+            sb.Append(LineSep).Append("<color=").Append(DimColor).Append('>');
             if (bought != 0)
-                sb.Append(Credit).Append(" ").Append(T("value_paid")).Append(": ").Append(Num(bought))
-                  .Append(" (").Append(T("value_base")).Append(": ").Append(Num(baseValue)).Append(')');
+                sb.Append(T("value_paid")).Append(": ").Append(Num(bought)).Append(" ").Append(Credit)
+                  .Append(" (").Append(T("value_base")).Append(": ").Append(Num(baseValue)).Append(" ").Append(Credit).Append(')');
             else
-                sb.Append(Credit).Append(" ").Append(T("value_base")).Append(": ").Append(Num(baseValue));
+                sb.Append(T("value_base")).Append(": ").Append(Num(baseValue)).Append(" ").Append(Credit);
             sb.Append("</color>");
 
             return sb.ToString();
@@ -177,6 +197,60 @@ namespace ValueTooltip
         private static double ToDouble(object o)
         {
             try { return Convert.ToDouble(o, CultureInfo.InvariantCulture); } catch { return 0; }
+        }
+    }
+
+    // 가치 블록(ValueBlock.LineSep 으로 이은 여러 줄)을 AddLine 한 번 대신 줄마다 AddLine 으로 나눈다
+    [HarmonyPatch(typeof(RichTextBuilder), nameof(RichTextBuilder.AddLine))]
+    internal static class AddLinePatch
+    {
+        private static bool Prefix(RichTextBuilder __instance, ref RichTextBuilder __result, string text, bool ignoreEmpty,
+                                   RenderHandler.ColorPalette color, bool bold, bool italic, bool underline, bool strikethrough,
+                                   RenderHandler.ColorPalette backgroundColor, RenderHandler.ColorPalette underlineColor,
+                                   RenderHandler.ColorPalette strikethroughColor)
+        {
+            if (text == null || text.IndexOf(ValueBlock.LineSep) < 0) return true;
+            foreach (string part in text.Split(ValueBlock.LineSep))
+                __instance.AddLine(part, ignoreEmpty, color, bold, italic, underline, strikethrough, backgroundColor, underlineColor, strikethroughColor);
+            __result = __instance;
+            return false;
+        }
+    }
+
+    // <font="qol_emph"> → 게임의 장식용(Lubrifont) 역할 폰트. 한국어 패치가 켜져 있으면 그 역할이 물마루로 바뀌어 있다.
+    // TMP 는 등록 안 된 폰트 이름을 만나면 TMP_Text.OnFontAssetRequest 로 물어본다. 폰트가 없으면 태그를 아예 안 쓴다
+    // (못 찾은 태그는 글자로 그대로 찍히므로).
+    internal static class EmphFont
+    {
+        internal const string TagName = "qol_emph";
+        private static bool hooked;
+
+        internal static bool Available()
+        {
+            Hook();
+            return Get() != null;
+        }
+
+        private static void Hook()
+        {
+            if (hooked) return;
+            hooked = true;
+            TMP_Text.OnFontAssetRequest += (hash, name) => name == TagName ? Get() : null;
+        }
+
+        private static TMP_FontAsset Get()
+        {
+            try
+            {
+                FontLoader fl = FontLoader.Instance;
+                var locale = LocalizationSettings.SelectedLocale;
+                if (fl == null || locale == null) return null;
+                return fl.GetFontByRole(FontLoader.FontRole.Lubrifont, locale);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

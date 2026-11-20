@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using HarmonyLib;
 using UnityEngine;
@@ -25,6 +26,7 @@ namespace MapExtension
         public bool Owned;
         public long Earned;          // 지금까지 번 돈
         public int LastIncome;       // 오늘 아침 매출
+        public int Attractiveness;   // 분점 자체 매력도 (본점과 별개, 처음 0). 손님 수 배율 = 매력도/400 (0.6~1.8)
         public readonly List<string> Logs = new List<string>(); // 최근 로그 (새 것이 앞)
         public bool AutoRestock;                 // 매일 아침 자동 채우기
         public bool HoldOnPriceDrop;             // 가격 하락 이벤트 중인 물건은 안 팔기
@@ -102,6 +104,7 @@ namespace MapExtension
         internal const int StockW = 17, StockH = 10; // 잭슨 박사의 대형 보관함(storage_bay_large)과 같은 크기
         private const int MaxLogs = 7;
         private const string LastPaidKey = "branch/last_paid_day";
+        private const string NamesKey = "branch/names"; // 기록 속 아이템 이름 → ID ("이름\u001fID" 를 \u001e 로 이음). 기록 표 그림용
         private static int lastPaidDay = -1;
 
         private static string Key(BranchSite b) => "branch/" + b.Key;
@@ -322,7 +325,7 @@ namespace MapExtension
                     ModHelper.RemoveModData(MapExtensionMod.ModId, AutoKey(b));
                     continue;
                 }
-                ModHelper.SetModData(MapExtensionMod.ModId, Key(b), "1|" + b.Earned + "|" + b.LastIncome);
+                ModHelper.SetModData(MapExtensionMod.ModId, Key(b), "1|" + b.Earned + "|" + b.LastIncome + "|" + b.Attractiveness);
                 string stock = null;
                 if (b.StockInv != null && b.StockInv.childItems.Count > 0)
                     stock = PlayerStore.Instance.EncodeSaveItem("save_bag", (PixelElement)b.StockInv, b.StockBox.contentWindow);
@@ -333,6 +336,16 @@ namespace MapExtension
                 else ModHelper.SetModData(MapExtensionMod.ModId, LogKey(b), string.Join("\u001e", b.Logs));
             }
             ModHelper.SetModData(MapExtensionMod.ModId, LastPaidKey, lastPaidDay.ToString());
+
+            // 지금 남은 기록에 나오는 이름만 저장 (기록은 7일치라 금방 작아진다)
+            var used = new List<string>();
+            foreach (BranchSite b in All)
+                foreach (string l in b.Logs)
+                    foreach (var kv in BranchSim.NameToId)
+                        if (l.Contains(kv.Key) && !used.Contains(kv.Key)) used.Add(kv.Key);
+            if (used.Count == 0) ModHelper.RemoveModData(MapExtensionMod.ModId, NamesKey);
+            else ModHelper.SetModData(MapExtensionMod.ModId, NamesKey,
+                string.Join("\u001e", used.Select(n => n + "\u001f" + BranchSim.NameToId[n])));
         }
 
         internal static void Read()
@@ -343,6 +356,7 @@ namespace MapExtension
                 b.Owned = false;
                 b.Earned = 0;
                 b.LastIncome = 0;
+                b.Attractiveness = 0;
                 b.Logs.Clear();
                 b.AutoRestock = false;
                 b.HoldOnPriceDrop = false;
@@ -355,6 +369,7 @@ namespace MapExtension
                 b.Owned = p.Length > 0 && p[0] == "1";
                 if (p.Length > 1) long.TryParse(p[1], out b.Earned);
                 if (p.Length > 2) int.TryParse(p[2], out b.LastIncome);
+                if (p.Length > 3) int.TryParse(p[3], out b.Attractiveness); // 예전 세이브엔 없음 → 0
                 if (!b.Owned) continue;
                 owned++;
                 string stock = ModHelper.GetModData(MapExtensionMod.ModId, StockKey(b));
@@ -376,6 +391,14 @@ namespace MapExtension
             }
             string d = ModHelper.GetModData(MapExtensionMod.ModId, LastPaidKey);
             lastPaidDay = int.TryParse(d, out int day) ? day : -1;
+            string names = ModHelper.GetModData(MapExtensionMod.ModId, NamesKey);
+            if (!string.IsNullOrEmpty(names))
+                foreach (string pair in names.Split('\u001e'))
+                {
+                    int i = pair.IndexOf('\u001f');
+                    if (i > 0 && i < pair.Length - 1) BranchSim.NameToId[pair.Substring(0, i)] = pair.Substring(i + 1);
+                }
+            BranchMonitor.Prewarm(); // 기록 표 아이템 그림을 미리 (여러 프레임에 나눠)
             Debug.Log("[MapExtension] save db read branches: owned " + owned);
         }
 
@@ -401,7 +424,7 @@ namespace MapExtension
     // ---- 손님 시뮬레이션 ----
     internal static class BranchSim
     {
-        private class VisitorType
+        internal class VisitorType
         {
             public string Name;
             public int BudgetMin, BudgetMax;
@@ -409,7 +432,7 @@ namespace MapExtension
             public string Faction; // 게임 세력 (평판이 이 손님 빈도에 영향)
         }
 
-        private static readonly Dictionary<string, VisitorType> Types = new Dictionary<string, VisitorType>
+        internal static readonly Dictionary<string, VisitorType> Types = new Dictionary<string, VisitorType>
         {
             { "worker",   new VisitorType { Name = "하층민 노동자", BudgetMin = 20,  BudgetMax = 120,  Likes = new[] { "FOOD", "PROCESSED_FOOD", "WATER", "WATER_RATION", "MEDICAL", "SUBSTANCE", "ALCOHOL" }, Faction = "FACTION_LOWER_LEVEL" } },
             { "family",   new VisitorType { Name = "하층민 가족",   BudgetMin = 30,  BudgetMax = 160,  Likes = new[] { "FOOD", "FRESH_FOOD", "PROCESSED_FOOD", "WATER", "MEDICAL", "TREAT" }, Faction = "FACTION_LOWER_LEVEL" } },
@@ -427,44 +450,73 @@ namespace MapExtension
         internal static int RunDay(BranchSite b, int day, int restocked = -1)
         {
             GameInventory stock = Branches.Stock(b);
-            float attr = AttractivenessMult(out int attrValue);
+            float attr = AttractivenessMult(b, out int attrValue);
             int visitors = Mathf.Max(0, Mathf.RoundToInt(UnityEngine.Random.Range(b.VisitorsMin, b.VisitorsMax + 1) * attr));
             var lines = new List<string>();
             int sales = 0, buyers = 0;
+            var evCache = new Dictionary<GameItem, int>(); // 물건별 오늘 이벤트 % (하루 한 번 계산)
 
             for (int v = 0; v < visitors; v++)
             {
                 VisitorType t = PickType(b);
                 if (t == null) continue;
                 int budget = UnityEngine.Random.Range(t.BudgetMin, t.BudgetMax + 1);
+                int wallet = budget; // 기록용: 들고 온 돈
+                int liked = 0, cheapest = int.MaxValue; // 기록용: 빈손 이유
                 var bought = new List<string>();
+                // 유행: 가격 상승 이벤트(+10% 이상) 물건은 종류가 안 맞아도 이 손님이 관심을 가질 수 있다 (확률 = 이벤트%/100, 최대 50%)
+                var fad = new HashSet<GameItem>();
+                foreach (GameItem i in stock.childItems)
+                {
+                    if (i == null || Likes(t, i)) continue;
+                    int e = Ev(evCache, i);
+                    if (e >= 10 && UnityEngine.Random.value < Mathf.Min(0.5f, e / 100f)) fad.Add(i);
+                }
                 for (int pick = 0; pick < 2 && budget > 0; pick++) // 한 손님이 최대 두 가지
                 {
-                    var cands = new List<(GameItem item, int unit)>();
+                    var cands = new List<(GameItem item, int unit, int ev, float w)>();
+                    float wsum = 0f;
                     foreach (GameItem i in stock.childItems)
                     {
-                        if (i == null || IsContraband(i) || !Likes(t, i)) continue; // 밀수품은 분점에서 절대 안 팔림
-                        if (b.HoldOnPriceDrop && EventPercent(i) < 0) continue;     // 가격 하락 이벤트 중이면 안 팖
+                        if (i == null || IsContraband(i)) continue;          // 밀수품은 분점에서 절대 안 팔림
+                        if (!Likes(t, i) && !fad.Contains(i)) continue;
+                        int e = Ev(evCache, i);
+                        if (b.HoldOnPriceDrop && e < 0) continue;             // 가격 하락 이벤트 중이면 안 팖
                         int unit = UnitPrice(b, i);
-                        if (unit > 0 && unit <= budget) cands.Add((i, unit));
+                        if (unit <= 0) continue;
+                        if (pick == 0) { liked++; if (unit < cheapest) cheapest = unit; }
+                        // 가격 상승 이벤트 물건엔 돈을 그만큼 더 쓸 마음이 있다
+                        int stretch = e > 0 ? Mathf.RoundToInt(budget * (1f + e / 100f)) : budget;
+                        if (unit > stretch) continue;
+                        // 이벤트 물건 선호: 상승이면 더 자주, 하락이면 덜 고른다
+                        float w = Mathf.Clamp(1f + e / 50f, 0.3f, 4f);
+                        cands.Add((i, unit, e, w));
+                        wsum += w;
                     }
                     if (cands.Count == 0) break;
-                    var c = cands[UnityEngine.Random.Range(0, cands.Count)];
+                    var c = cands[cands.Count - 1];
+                    float r = UnityEngine.Random.Range(0f, wsum);
+                    foreach (var x in cands) { if (r < x.w) { c = x; break; } r -= x.w; }
+                    int spend = c.ev > 0 ? Mathf.RoundToInt(budget * (1f + c.ev / 100f)) : budget;
                     int have = Math.Max(1, c.item.unitCount);
-                    int qty = Math.Min(have, Math.Min(budget / c.unit, UnityEngine.Random.Range(1, 4)));
+                    int qty = Math.Min(have, Math.Min(spend / c.unit, UnityEngine.Random.Range(1, 4)));
                     if (qty <= 0) break;
                     string name = Name(c.item);
-                    int ev = EventPercent(c.item); // 없애기 전에
+                    RememberId(name, c.item); // 기록 표에서 아이템 그림을 찾을 수 있게
+                    bool isFad = fad.Contains(c.item);
                     int paid = c.unit * qty;
-                    budget -= paid;
+                    budget = Math.Max(0, budget - paid);
                     sales += paid;
                     if (qty >= have) { stock.Expel(c.item); c.item.Destroy(); }
                     else c.item.SetUnitCount(have - qty);
                     bought.Add(name + (qty > 1 ? " ×" + qty : "") + " (" + paid + " ₵"
-                               + (ev != 0 ? ", 이벤트 " + (ev > 0 ? "+" : "") + ev + "%" : "") + ")");
+                               + (c.ev != 0 ? ", 이벤트 " + (c.ev > 0 ? "+" : "") + c.ev + "%" : "")
+                               + (isFad ? ", 유행" : "") + ")");
                 }
-                if (bought.Count > 0) { buyers++; lines.Add(" - " + t.Name + ": " + string.Join(", ", bought)); }
-                else lines.Add(" - " + t.Name + ": 둘러보고 그냥 감");
+                string who = " - " + t.Name + " (소지금 " + wallet + " ₵): ";
+                if (bought.Count > 0) { buyers++; lines.Add(who + string.Join(", ", bought)); }
+                else if (liked == 0) lines.Add(who + "둘러보고 그냥 감 (마음에 드는 게 없음)");
+                else lines.Add(who + "둘러보고 그냥 감 (너무 비쌈: 제일 싼 게 " + cheapest + " ₵)");
             }
 
             var sb = new StringBuilder();
@@ -494,7 +546,7 @@ namespace MapExtension
         }
 
         // 손님 빈도 = 기본 가중치 × 그 세력 평판 배율
-        private static float Weight(string type, int baseWeight)
+        internal static float Weight(string type, int baseWeight)
         {
             return Types.TryGetValue(type, out VisitorType t) ? baseWeight * RepMult(t.Faction) : baseWeight;
         }
@@ -515,11 +567,11 @@ namespace MapExtension
             }
         }
 
-        // 본점 매력도 → 분점 손님 수 배율 (매력도 / 400, 0.6~1.8). 게임 기준: 400 이상 2등급, 650 이상 3등급
-        internal static float AttractivenessMult(out int value)
+        // 분점 매력도 → 손님 수 배율 (매력도 / 400, 0.6~1.8). 게임 기준: 400 이상 2등급, 650 이상 3등급.
+        // 예전엔 본점 매력도를 썼음. 지금은 분점마다 따로 (처음 0 → 최저 배율 0.6)
+        internal static float AttractivenessMult(BranchSite b, out int value)
         {
-            value = 0;
-            try { value = PlayerStore.Instance.GetCurrentStoreAttractiveness(); } catch { return 1f; }
+            value = b != null ? b.Attractiveness + BranchRenovation.Bonus(b) : 0; // 기본 0 + 와일드 네트워크 분점 개보수
             return Mathf.Clamp(value / 400f, 0.6f, 1.8f);
         }
 
@@ -550,7 +602,7 @@ namespace MapExtension
             return string.Join(" · ", parts);
         }
 
-        private static bool Likes(VisitorType t, GameItem i)
+        internal static bool Likes(VisitorType t, GameItem i)
         {
             List<string> types;
             try { types = i.GetGameItemType(); } catch { return false; }
@@ -560,8 +612,14 @@ namespace MapExtension
             return false;
         }
 
+        private static int Ev(Dictionary<GameItem, int> cache, GameItem i)
+        {
+            if (!cache.TryGetValue(i, out int e)) { e = EventPercent(i); cache[i] = e; }
+            return e;
+        }
+
         // 오늘 이벤트(게임 시세 이벤트)로 이 물건 값이 몇 % 바뀌었나 (0 = 영향 없음)
-        private static int EventPercent(GameItem i)
+        internal static int EventPercent(GameItem i)
         {
             try
             {
@@ -577,14 +635,28 @@ namespace MapExtension
         }
 
         // 판매가 = 게임 판매가(소매 마진 + 오늘 이벤트 시세 포함, 가게 진열가와 같은 계산) × 위치 배율
-        private static int UnitPrice(BranchSite b, GameItem i)
+        internal static int UnitPrice(BranchSite b, GameItem i)
         {
             long v;
             try { v = i.GetCurrentValue(true, true, true, false, 0L); } catch { v = i.unitValue; }
             return (int)Math.Max(0, Math.Round(v * b.PriceMult));
         }
 
-        private static string Name(GameItem i)
+        // 기록에 남는 표시 이름 → 아이템 ID (이번 실행 동안만. 기록 표의 아이템 그림용)
+        internal static readonly Dictionary<string, string> NameToId = new Dictionary<string, string>();
+
+        internal static void RememberId(string name, GameItem i)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(name) && i != null && !string.IsNullOrEmpty(i.identifier)) NameToId[name] = i.identifier;
+            }
+            catch
+            {
+            }
+        }
+
+        internal static string Name(GameItem i)
         {
             try { return i.GetDisplayName(true); } catch { return i.name; }
         }

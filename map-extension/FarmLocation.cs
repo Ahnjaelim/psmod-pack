@@ -27,7 +27,10 @@ namespace MapExtension
         public int MinItems = 1, MaxItems = 1;
         public string[] NeedsAny;    // 이 중 하나가 외출 가방에 있어야 함 (예: crowbar, lockpicks)
         public string NeedsText;
+        public bool ConsumesTool;    // 열 때 NeedsAny 중 하나를 1개 쓴다 (일회용 키카드 등, 앞에 적힌 것부터)
         public int RefillDays = 3;
+        public bool Telescope;       // 망원경 지점: 장소를 다 뒤져야 나타나고, 쓰면 Unlocks 장소가 열린다
+        public string[] Unlocks;     // FarmLocation.Key 목록
     }
 
     internal class FarmLocation : AfterhourLocation
@@ -40,7 +43,7 @@ namespace MapExtension
         internal const string PlaceholderBackground = "bg_placeholder.png";
 
         // 테스트용 기력 (0 = 끔). 출시 전에 0 으로!
-        internal const int TestEnergy = 100;
+        internal const int TestEnergy = 0;
 
         private Texture2D LoadBackground()
         {
@@ -58,7 +61,40 @@ namespace MapExtension
         public override string Id => "vme_farm_" + Key;
         public override string Source => MapExtensionMod.ModId;
         public override string GetTitle() => Name;
-        public override bool IsDiscovered() => true;
+        // 시작 장소(약국, 철물점) 또는 다른 장소의 망원경으로 찾은 곳만
+        public override bool IsDiscovered() => FarmLocationData.StartOpen.Contains(Key) || ModHelper.GetAfterhourCounter(Id, "unlocked", 0) == 1;
+
+        internal static void SetUnlocked(string key) => ModHelper.SetAfterhourCounter("vme_farm_" + key, "unlocked", 1);
+        internal static bool IsUnlocked(string key) => FarmLocationData.StartOpen.Contains(key) || ModHelper.GetAfterhourCounter("vme_farm_" + key, "unlocked", 0) == 1;
+
+        // 망원경 말고 뒤질 곳을 전부 한 번 이상 뒤졌나
+        internal bool AllCleared()
+        {
+            foreach (FarmSpot s in Spots)
+                if (!s.Telescope && ModHelper.GetAfterhourCounter(Id, "searched_" + s.Key, -1000) <= -1000) return false;
+            return true;
+        }
+
+        internal int ClearedCount()
+        {
+            int n = 0;
+            foreach (FarmSpot s in Spots)
+                if (!s.Telescope && ModHelper.GetAfterhourCounter(Id, "searched_" + s.Key, -1000) > -1000) n++;
+            return n;
+        }
+
+        internal int SearchSpotCount()
+        {
+            int n = 0;
+            foreach (FarmSpot s in Spots) if (!s.Telescope) n++;
+            return n;
+        }
+
+        internal void RefreshAll()
+        {
+            if (stage == null) return;
+            foreach (FarmHotspot h in stage.GetComponentsInChildren<FarmHotspot>(true)) h.Refresh();
+        }
 
         private GameObject stage;
         private float hsLabelOffset;
@@ -353,14 +389,76 @@ namespace MapExtension
         // ---- 고갈 상태 (세이브에 저장) ----
         internal int Today => StoreStation.Instance != null ? StoreStation.Instance.dayCounter : 0;
 
+        // ---- 남은 물건 (%): 한 번도 안 뒤졌으면 100%. 뒤지면 0% → QuietDays 동안 그대로 → 하루 RegrowPerDay% 씩, 최대 RegrowCap%.
+        //      다시 차는 건 잡동사니/싼 물건뿐 (RollRegrowth). 뒤질 수 있는 최소 = MinSearchable%.
+        internal const int QuietDays = 7, RegrowPerDay = 4, RegrowCap = 40, MinSearchable = 5;
+
+        internal int LastSearched(FarmSpot s) => ModHelper.GetAfterhourCounter(Id, "searched_" + s.Key, -1000);
+
+        internal bool EverSearched(FarmSpot s) => LastSearched(s) > -1000;
+
+        internal int FillPercent(FarmSpot s)
+        {
+            int last = LastSearched(s);
+            if (last <= -1000) return 100;
+            int d = Today - last;
+            if (d <= QuietDays) return 0;
+            return Mathf.Min(RegrowCap, (d - QuietDays) * RegrowPerDay);
+        }
+
+        // 뒤질 수 있을 만큼(MinSearchable%) 찰 때까지 남은 날 (0 = 지금 뒤질 수 있음)
         internal int DaysUntilRefill(FarmSpot s)
         {
-            int last = ModHelper.GetAfterhourCounter(Id, "searched_" + s.Key, -1000);
-            int left = last + s.RefillDays - Today;
-            return left > 0 ? left : 0;
+            if (FillPercent(s) >= MinSearchable) return 0;
+            int last = LastSearched(s);
+            int need = QuietDays + Mathf.CeilToInt(MinSearchable / (float)RegrowPerDay);
+            int left = last + need - Today;
+            return left > 0 ? left : 1;
         }
 
         internal void MarkSearched(FarmSpot s) => ModHelper.SetAfterhourCounter(Id, "searched_" + s.Key, Today);
+
+        // NeedsAny 중 외출 가방에 있는 첫 번째 아이템
+        private GameItem FindTool(FarmSpot s)
+        {
+            if (s.NeedsAny == null) return null;
+            foreach (string id in s.NeedsAny)
+            {
+                GameItem g = null;
+                try { g = EmporiumEntry.Instance.GetAfterhourItemById(id); } catch { }
+                if (g != null) return g;
+            }
+            return null;
+        }
+
+        internal string ToolName(FarmSpot s)
+        {
+            GameItem g = FindTool(s);
+            if (g == null) return null;
+            try { return g.GetDisplayName(); } catch { return g.identifier; }
+        }
+
+        // 일회용 도구 1개 쓰기 (여러 개 겹친 거면 개수만 줄임)
+        internal void ConsumeTool(FarmSpot s)
+        {
+            GameItem g = FindTool(s);
+            if (g == null) return;
+            try
+            {
+                string name = ToolName(s);
+                if (g.unitCount > 1) g.SetUnitCount(g.unitCount - 1);
+                else
+                {
+                    g.parentInventory?.Expel(g);
+                    g.Destroy();
+                }
+                try { StoreUIManager.Instance.Notify(name + " 1개를 썼다."); } catch { }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[MapExtension] consume tool: " + ex.Message);
+            }
+        }
 
         internal bool HasTool(FarmSpot s)
         {
@@ -387,6 +485,18 @@ namespace MapExtension
         internal void Refresh()
         {
             if (sr == null || owner == null) return;
+            if (spot.Telescope)
+            {
+                bool show = owner.AllCleared();
+                if (gameObject.activeSelf != show) gameObject.SetActive(show);
+                if (icon != null) icon.gameObject.SetActive(show);
+                if (label != null) label.gameObject.SetActive(show);
+                bool more = TelescopeTargetsLeft() > 0;
+                sr.color = more ? Locked : Empty;
+                if (icon != null) icon.color = sr.color;
+                if (label != null) label.color = more ? Color.white : new Color32(0x80, 0x80, 0x88, 0xff);
+                return;
+            }
             bool empty = owner.DaysUntilRefill(spot) > 0;
             sr.color = empty ? Empty : (owner.HasTool(spot) ? Ready : Locked);
             if (icon != null) icon.color = sr.color;
@@ -395,19 +505,46 @@ namespace MapExtension
 
         public override bool IsTooltipEnabled() => owner != null;
 
+        private int TelescopeTargetsLeft()
+        {
+            int n = 0;
+            if (spot.Unlocks != null) foreach (string k in spot.Unlocks) if (!FarmLocation.IsUnlocked(k)) n++;
+            return n;
+        }
+
+        private static string LocName(string key)
+        {
+            foreach (FarmLocation l in FarmLocations.All) if (l.Key == key) return l.Name;
+            return key;
+        }
+
         public override string GetTooltip()
         {
+            if (spot.Telescope)
+                return TelescopeTargetsLeft() > 0
+                    ? spot.Name + " (기력 " + spot.Cost + ")\n<color=#ffcf6b>근처에 들어갈 만한 곳이 보일 것 같다.</color>"
+                    : spot.Name + "\n<color=#9a9aa8>이미 다 살펴봤다. 보이는 곳은 지도에 표시해 뒀다.</color>";
             int left = owner.DaysUntilRefill(spot);
-            string s = spot.Name + " (기력 " + spot.Cost + ")";
-            if (left > 0) return s + "\n<color=#9a9aa8>이미 뒤졌다. " + left + "일 뒤 다시 채워진다. (클릭: 상자 열기)</color>";
+            int fill = owner.FillPercent(spot);
+            string s = spot.Name + " (기력 " + spot.Cost + ")\n" + FillText(fill);
+            if (left > 0) return s + "\n<color=#9a9aa8>텅 비었다. " + left + "일은 지나야 뭔가 조금 쌓인다. (클릭: 상자 열기)</color>";
+            if (owner.EverSearched(spot)) s += "\n<color=#9a9aa8>이미 털린 곳. 잡동사니나 싼 물건만 조금 쌓였다.</color>";
             if (!owner.HasTool(spot)) return s + "\n<color=#ff8a6b>" + spot.NeedsText + "</color>";
             return s;
+        }
+
+        // "남은 물건 약 N%" (색: 많음 청록 / 조금 노랑 / 없음 회색)
+        internal static string FillText(int fill)
+        {
+            string c = fill >= 60 ? "#4df0e0" : fill >= FarmLocation.MinSearchable ? "#ffcf6b" : "#80808a";
+            return "<color=" + c + ">남은 물건 약 " + fill + "%</color>";
         }
 
         public void OnClick()
         {
             if (owner == null || owner.Busy) return;
             Refresh();
+            if (spot.Telescope) { UseTelescope(); return; }
             // 이번 외출에서 이미 연 상자에 물건이 남아 있으면 다시 연다
             // 이미 뒤진 곳: 다시 채워지기 전이면 그 상자를 다시 연다 (남긴 물건 그대로, 없으면 빈 상자)
             // 이미 뒤진 곳은 테스트 모드여도 수색 창 없이 상자만 연다
@@ -421,7 +558,7 @@ namespace MapExtension
             // 다시 채워졌으면 지난 상자는 버리고 새로 뒤진다
             DiscardBox();
             int left = owner.DaysUntilRefill(spot);
-            if (left > 0 && !testRefill) { Notify("이미 뒤졌다. " + left + "일 뒤 다시 채워진다."); return; }
+            if (left > 0 && !testRefill) { Notify("텅 비었다. " + left + "일은 지나야 뭔가 쌓인다."); return; }
             if (!owner.HasTool(spot)) { Notify(spot.NeedsText); return; }
             if (PlayerStore.Instance.healthData.isWoundedFresh) { Notify(LocHelper.GetLocalizedMechanic("afterhour_attempts_wounded")); return; }
 
@@ -429,10 +566,35 @@ namespace MapExtension
             if (now < spot.Cost) { Notify("기력이 부족하다. (필요 " + spot.Cost + ", 남은 기력 " + now + ")"); return; }
             int after = now - spot.Cost;
             try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
-            string body = "<b>수색</b>\n\n" + spot.Desc + "\n남은 기력: " + now + " → 수색 후: <color=#ff5a5a>" + after + "</color>";
+            string body = "<b>수색</b>\n\n" + spot.Desc + "\n" + FillText(owner.FillPercent(spot))
+                          + "\n남은 기력: " + now + " → 수색 후: <color=#ff5a5a>" + after + "</color>";
+            string tool = spot.ConsumesTool ? owner.ToolName(spot) : null;
+            if (tool != null) body += "\n<color=#ffcf6b>" + tool + " 1개를 쓴다.</color>";
             if (spot.MinorWound + spot.MajorWound > 0f)
                 body += "\n<color=#9a9aa8>부상 위험: 경상 " + spot.MinorWound.ToString("0.#") + "% / 중상 " + spot.MajorWound.ToString("0.#") + "%</color>";
             Dialogs.Confirm(body, "수색", "취소", () => StartCoroutine(Search()));
+        }
+
+        // 망원경: 기력을 쓰고 연결된 장소를 해금
+        private void UseTelescope()
+        {
+            if (!owner.AllCleared()) return;
+            var targets = new List<string>();
+            if (spot.Unlocks != null) foreach (string k in spot.Unlocks) if (!FarmLocation.IsUnlocked(k)) targets.Add(k);
+            if (targets.Count == 0) { Notify("이미 다 살펴봤다."); return; }
+            int now = ScavHelper.GetScavTimeLeft();
+            if (now < spot.Cost) { Notify("기력이 부족하다. (필요 " + spot.Cost + ", 남은 기력 " + now + ")"); return; }
+            try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
+            string body = "<b>망원경</b>\n\n" + spot.Desc + "\n남은 기력: " + now + " → <color=#ff5a5a>" + (now - spot.Cost) + "</color>";
+            Dialogs.Confirm(body, "살펴보기", "취소", () =>
+            {
+                PlayerStore.Instance.scavengingAttempts += spot.Cost;
+                var names = new List<string>();
+                foreach (string k in targets) { FarmLocation.SetUnlocked(k); names.Add(LocName(k)); }
+                Notify("새 장소를 찾았다: " + string.Join(", ", names) + " (외출 지도에 표시됨)");
+                TryPlay("click_vintage");
+                owner.RefreshAll();
+            });
         }
 
         private IEnumerator Search()
@@ -450,7 +612,9 @@ namespace MapExtension
                 Debug.LogWarning("[MapExtension] search: " + ex);
             }
             owner.Busy = false;
-            Refresh();
+            owner.RefreshAll(); // 다 뒤졌으면 망원경이 나타난다
+            if (owner.AllCleared() && owner.Spots.Exists(x => x.Telescope))
+                Notify(owner.Name + "을(를) 다 뒤졌다. 망원경으로 주변을 살펴볼 수 있다.");
             owner.RefreshPanel();
         }
 
@@ -458,7 +622,10 @@ namespace MapExtension
         {
             PlayerStore ps = PlayerStore.Instance;
             ps.scavengingAttempts += spot.Cost;
+            int fill = owner.FillPercent(spot);          // 뒤지기 전 남은 양
+            bool regrowth = owner.EverSearched(spot);    // 이미 털린 곳 → 다시 쌓인 잡동사니만
             owner.MarkSearched(spot);
+            if (spot.ConsumesTool) owner.ConsumeTool(spot);
 
             if (spot.MinorWound > 0f && RNG.Roll(spot.MinorWound))
             {
@@ -471,17 +638,19 @@ namespace MapExtension
                 else { HealthData.ReceiveMajorWound(); TryPlay("debris_impact"); return; }
             }
 
-            if ((spot.Empty > 0f && RNG.Roll(spot.Empty)) || HealthData.RollBadLuck())
+            // 다시 쌓인 곳: 빈손 확률이 높고(남은 양이 적을수록), 1~2개, 잡동사니/싼 물건만
+            float emptyChance = regrowth ? Mathf.Min(90f, spot.Empty + (RegrowCapF - fill) * 1.2f) : spot.Empty;
+            if ((emptyChance > 0f && RNG.Roll(emptyChance)) || HealthData.RollBadLuck())
             {
                 Notify("아무것도 없었다.");
                 return;
             }
 
-            int n = UnityEngine.Random.Range(spot.MinItems, spot.MaxItems + 1);
+            int n = regrowth ? (fill >= 25 && RNG.Roll(50f) ? 2 : 1) : UnityEngine.Random.Range(spot.MinItems, spot.MaxItems + 1);
             var found = new List<GameItem>();
             for (int i = 0; i < n; i++)
             {
-                GameItem item = RollOne();
+                GameItem item = regrowth ? RollRegrowth() : RollOne();
                 if (item != null) found.Add(item);
             }
             if (found.Count == 0)
@@ -520,7 +689,7 @@ namespace MapExtension
 
         private GameItem CreateSearchBox(string title)
         {
-            (PixelWindow win, GameInventory inv) = DirectoryUtils.CreateInventoryWindow(6, 4);
+            (PixelWindow win, GameInventory inv) = DirectoryUtils.CreateInventoryWindow(8, 8); // 한 번에 10개 넘게 나올 수 있어서 넉넉히
             try { win.SetTitle(title); } catch { } // 창 제목 = 뒤진 곳 이름 (예: 조제실 카운터)
             GameItem b = ItemDirectory.CreateEmptyItem("vme_search_box").SetContentWindow(win).SetSpriteAndShape("Items/items_container", "evidence_box");
             b.name = title;
@@ -606,6 +775,14 @@ namespace MapExtension
         }
 
         // 한 개 굴리기: Items(가중치) 또는 게임 전리품 표
+        private const float RegrowCapF = FarmLocation.RegrowCap;
+
+        // 다시 쌓인 물건: 잡동사니 표 위주 + 생활용품 조금
+        private static GameItem RollRegrowth()
+        {
+            return ItemSpawner.SpawnFromTable(RNG.Roll(75f) ? "junkTable" : "householdTable");
+        }
+
         private GameItem RollOne()
         {
             bool hasTables = spot.Tables != null && spot.Tables.Length > 0;
@@ -664,13 +841,29 @@ namespace MapExtension
                         Desc = "가운데 진열대. 남은 건 대부분 빈 상자지만 가끔 뭔가 굴러다닌다.", Tables = new[] { "junkTable" }, MinorWound = 2f, Empty = 30f, RefillDays = 1 },
                     new FarmSpot { Key = "safe", Name = "지하실 문", Area = new Rect(0.33f, 0.72f, 0f, 0f), Cost = 3,
                         Desc = "지하실 표지판 아래 잠긴 문. 약사가 귀한 물건을 숨겨 뒀다는 소문이 있다.", Tables = new[] { "medicalTable", "toolTable", "allModuleTable" }, MinItems = 2, MaxItems = 3, MinorWound = 3f, Empty = 5f,
-                        NeedsAny = new[] { "crowbar", "lockpicks" }, NeedsText = "잠겨 있다. 지렛대나 자물쇠 따개가 외출 가방에 있어야 한다.", RefillDays = 7 },
+                        NeedsAny = new[] { "med_keycard", "cmd_keycard" }, ConsumesTool = true, NeedsText = "의무부 키카드 잠금장치다. 의무부 키카드(또는 사령부 키카드)가 외출 가방에 있어야 한다.", RefillDays = 7 },
                 },
             },
         };
 
+        private static bool dataAdded;
+
         internal static void Register()
         {
+            // 새 수색처 19곳 + 해금 연결이 있는 장소에 망원경 (한 번만)
+            if (!dataAdded)
+            {
+                dataAdded = true;
+                foreach (FarmLocation l in FarmLocationData.Create())
+                    if (!All.Exists(x => x.Key == l.Key)) All.Add(l);
+                foreach (FarmLocation l in All)
+                {
+                    if (l is BranchLocation) continue;
+                    FarmLocationData.ApplyEarlyBalance(l); // 초반 수색처: 기력 합 10, 아이템 많이
+                    if (FarmLocationData.Chain.ContainsKey(l.Key) && !l.Spots.Exists(s => s.Telescope))
+                        l.Spots.Add(FarmLocationData.Telescope(l.Key));
+                }
+            }
             // 분점도 같은 구조의 장소 (세이브 DB 바닥 저장도 같이 하도록 목록에 넣는다)
             foreach (BranchLocation b in Branches.Locations)
                 if (!All.Contains(b)) All.Add(b);

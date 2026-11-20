@@ -28,22 +28,40 @@ namespace MapExtension
         private float nextRefresh;
         private readonly List<(BranchSite site, TextMeshProUGUI info)> infos = new List<(BranchSite, TextMeshProUGUI)>();
         private int shownLogs = -1;
+        // [분점] 옆 분점별 [재고] 바로가기 (산 분점만, 왼쪽부터 차례로)
+        private const float StockBtnW = 84f, StockBtnH = 87f; // 상자 그림 버튼 (Map/img_box.png, 486x502)
+        private static Sprite boxSprite;
+        private readonly List<(BranchSite site, GameObject btn)> stockButtons = new List<(BranchSite, GameObject)>();
 
-        // 게임 가게 UI 캔버스(달력 모니터 창과 같은 부모)의 맨 뒤에 둔다 → 로딩 화면/메뉴/연출 등 게임 화면이 덮으면 같이 가려진다.
+        // 게임 아이템 창 캔버스의 창 루트 바로 앞에 둔다 → 가게 물건/창보다 뒤(배경 층), 로딩 화면/메뉴가 덮으면 같이 가려진다.
         // 크기는 1920x1080 기준 단위로 만들고, 화면 해상도와 캔버스 배율에 맞춰 localScale 로 맞춘다.
         private Canvas hostCanvas;
 
         internal static void Ensure()
         {
             if (instance != null) return;
-            Transform host = AdvCalendarUIManager.Instance != null && AdvCalendarUIManager.Instance.UIPanel != null
-                ? AdvCalendarUIManager.Instance.UIPanel.transform.parent : null;
+            // 1순위: 게임 아이템 창 캔버스(windowUICanvas)에서 창 루트(windowRootObject) 바로 앞 → 가게 물건/창 뒤, 배경 위.
+            // 2순위: 가게 UI 캔버스(달력 모니터 창 부모) 맨 뒤.
+            Transform host = null;
+            int siblingIndex = 0;
+            try
+            {
+                GameObject wr = RenderHandler.current != null ? RenderHandler.current.windowRootObject : null;
+                if (wr != null && wr.transform.parent != null)
+                {
+                    host = wr.transform.parent;
+                    siblingIndex = wr.transform.GetSiblingIndex();
+                }
+            }
+            catch { host = null; }
+            if (host == null && AdvCalendarUIManager.Instance != null && AdvCalendarUIManager.Instance.UIPanel != null)
+                host = AdvCalendarUIManager.Instance.UIPanel.transform.parent;
             GameObject go;
             if (host != null)
             {
                 go = new GameObject("VME_BranchPanel", typeof(RectTransform));
                 go.transform.SetParent(host, false);
-                go.transform.SetAsFirstSibling();
+                go.transform.SetSiblingIndex(siblingIndex);
                 var rt = (RectTransform)go.transform;
                 rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
                 rt.anchoredPosition = Vector2.zero;
@@ -70,6 +88,20 @@ namespace MapExtension
             instance.FitScale();
         }
 
+        // 게임이 형제 순서를 바꿔도(ESC 메뉴, 창 열고 닫기 등) 항상 창 루트 바로 앞에 있게
+        private void KeepBehindWindows()
+        {
+            try
+            {
+                GameObject wr = RenderHandler.current != null ? RenderHandler.current.windowRootObject : null;
+                if (wr == null || wr.transform.parent != transform.parent) return;
+                int wi = wr.transform.GetSiblingIndex();
+                int mi = transform.GetSiblingIndex();
+                if (mi != wi - 1) transform.SetSiblingIndex(mi < wi ? wi - 1 : wi);
+            }
+            catch { }
+        }
+
         // 1920x1080 기준 단위 → 이 캔버스 단위
         private void FitScale()
         {
@@ -88,6 +120,14 @@ namespace MapExtension
         private void Build()
         {
             button = MakeButton(transform, "분점", Margin, Margin, BtnW, BtnH, 17f, Toggle).gameObject;
+            foreach (BranchSite site in Branches.All)
+            {
+                BranchSite s = site;
+                string shortName = s.Name.EndsWith(" 분점") ? s.Name.Substring(0, s.Name.Length - 3) : s.Name;
+                GameObject b = BoxButton(transform, shortName, () => OpenStockQuick(s));
+                b.SetActive(false);
+                stockButtons.Add((s, b));
+            }
 
             panel = new GameObject("Panel", typeof(RectTransform));
             panel.transform.SetParent(transform, false);
@@ -118,6 +158,98 @@ namespace MapExtension
         // [분점] 버튼 → 분점 모니터 (게임 달력 모니터 창 복제, BranchMonitor). 예전 오버레이 목록 패널은 안 씀
         private void Toggle() => BranchMonitor.Toggle();
 
+        // 분점 재고 창 바로 열기 (모니터가 열려 있으면 그 위로)
+        private static void OpenStockQuick(BranchSite site)
+        {
+            // 이미 열려 있으면 닫는다 (버튼 다시 누르기 = 토글)
+            try
+            {
+                PixelWindow w = site.StockBox?.contentWindow;
+                if (w != null && w.IsVisible())
+                {
+                    w.Hide();
+                    try { AudioManager.Instance.Play2("click_vintage"); } catch { }
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[MapExtension] stock toggle: " + ex.Message);
+            }
+            Branches.OpenStock(site);
+            try
+            {
+                if (BranchMonitor.IsOpen) BranchMonitor.RaiseAbove(site.StockBox?.contentWindow?.handler?.gameObject);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[MapExtension] stock quick raise: " + ex.Message);
+            }
+        }
+
+        // 상자 그림 버튼 + 아래쪽에 분점 이름 (그림을 못 읽으면 글자 버튼)
+        private GameObject BoxButton(Transform parent, string label, Action click)
+        {
+            Sprite sp = BoxSprite();
+            if (sp == null) return MakeButton(parent, label + " 재고", 0f, Margin, 150f, BtnH, 15f, click).gameObject;
+            var go = new GameObject("Box_" + label, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
+            rt.anchoredPosition = new Vector2(0f, Margin);
+            rt.sizeDelta = new Vector2(StockBtnW, StockBtnH);
+            var img = go.AddComponent<Image>();
+            img.sprite = sp;
+            img.preserveAspect = true;
+            go.AddComponent<HoverName>().Text = label + " 분점 재고"; // 이름은 마우스 올리면 툴팁으로
+            var b = go.AddComponent<Button>();
+            b.targetGraphic = img;
+            var colors = b.colors;
+            colors.highlightedColor = new Color(1.25f, 1.2f, 1.1f, 1f);
+            colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+            b.colors = colors;
+            b.onClick.AddListener(() =>
+            {
+                try { click(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] branch panel: " + ex.Message); }
+            });
+            go.SetActive(false);
+            return go;
+        }
+
+        private static Sprite BoxSprite()
+        {
+            if (boxSprite != null) return boxSprite;
+            try
+            {
+                byte[] bytes = ModHelper.ReadModFileBytes(MapExtensionMod.ModId, "Map/img_box.png");
+                if (bytes == null || bytes.Length == 0) return null;
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!tex.LoadImage(bytes)) return null;
+                tex.wrapMode = TextureWrapMode.Clamp;
+                tex.name = "img_box";
+                boxSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[MapExtension] img_box: " + ex.Message);
+            }
+            return boxSprite;
+        }
+
+        private void UpdateStockButtons(bool show)
+        {
+            float x = Margin + BtnW + 8f;
+            foreach (var (site, b) in stockButtons)
+            {
+                bool on = show && site.Owned;
+                if (b.activeSelf != on) b.SetActive(on);
+                if (!on) continue;
+                var rt = (RectTransform)b.transform;
+                if (Mathf.Abs(rt.anchoredPosition.x - x) > 0.01f) rt.anchoredPosition = new Vector2(x, Margin);
+                x += StockBtnW + 6f;
+            }
+        }
+
         private void Show(bool on)
         {
             try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
@@ -147,8 +279,11 @@ namespace MapExtension
         private void Update()
         {
             FitScale();
+            KeepBehindWindows();
+            BranchMonitor.TickOverlay();
             bool show = InStore();
             if (button.activeSelf != show) button.SetActive(show);
+            UpdateStockButtons(show);
             if (!show && panel.activeSelf) { panel.SetActive(false); Branches.CloseAllStock(); }
             if (panel.activeSelf && Time.unscaledTime >= nextRefresh) RefreshInfo(); // 재고 수 갱신 (버튼은 그대로)
         }

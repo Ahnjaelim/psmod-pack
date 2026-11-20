@@ -18,6 +18,7 @@ namespace MapExtension
             RetiredMerchants.Register();
             FarmLocations.Register();
             Roaming.Register();
+            BranchRenovation.Register();
             ModHook.OnGameLoadedLate += OnGameLoaded;
         }
 
@@ -33,6 +34,7 @@ namespace MapExtension
         {
             ModHook.OnGameLoadedLate -= OnGameLoaded;
             Roaming.Unregister();
+            BranchRenovation.Unregister();
             OutingHud.Remove();
             BranchPanel.Remove();
             RetiredMerchants.Unregister();

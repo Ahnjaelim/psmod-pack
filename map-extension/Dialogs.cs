@@ -40,6 +40,26 @@ namespace MapExtension
             }
         }
 
+        // 원본 창의 글자 폰트(게임이 언어에 맞춰 바꿔 둔 것)를 복제본 같은 자리 글자에 그대로.
+        // 폰트를 바꿔 주는 게임 스크립트는 복제본에서 지워지므로, 안 하면 영어 폰트 + 한글 대체 글꼴이 섞여 보인다.
+        private static void CopyFonts(Transform src, Transform dst)
+        {
+            try
+            {
+                TMP_Text s = src.GetComponent<TMP_Text>(), d = dst.GetComponent<TMP_Text>();
+                if (s != null && d != null)
+                {
+                    d.font = s.font;
+                    d.fontSharedMaterial = s.fontSharedMaterial;
+                }
+                int n = Mathf.Min(src.childCount, dst.childCount);
+                for (int i = 0; i < n; i++) CopyFonts(src.GetChild(i), dst.GetChild(i));
+            }
+            catch
+            {
+            }
+        }
+
         internal static void Close()
         {
             if (current != null) UnityEngine.Object.Destroy(current);
@@ -83,9 +103,11 @@ namespace MapExtension
             {
                 if (mb == null) continue;
                 string ns = mb.GetType().Namespace ?? "";
-                if (ns.StartsWith("UnityEngine") || ns.StartsWith("TMPro")) continue;
+                // 번역 컴포넌트(UnityEngine.Localization)도 지운다: 남겨 두면 켜질 때 버튼 글자를 "No" 등 원래 문구로 되돌린다
+                if ((ns.StartsWith("UnityEngine") && !ns.StartsWith("UnityEngine.Localization")) || ns.StartsWith("TMPro")) continue;
                 UnityEngine.Object.DestroyImmediate(mb);
             }
+            CopyFonts(src.transform, go.transform);
             go.transform.SetParent(layer.transform, false);
             UnityEngine.Object.Destroy(holder);
             var rt = (RectTransform)go.transform;
@@ -122,7 +144,7 @@ namespace MapExtension
                 return false;
             }
 
-            bodyText.text = body ?? "";
+            SetText(bodyText, body ?? "");
             Button okB = buttons[0], noB = buttons[buttons.Count - 1];
             Wire(okB, labelOf.TryGetValue(okB, out TMP_Text okT) ? okT : null, ok, () => { Close(); onOk?.Invoke(); });
             if (string.IsNullOrEmpty(cancel)) noB.gameObject.SetActive(false);
@@ -149,15 +171,17 @@ namespace MapExtension
 
         private static void Wire(Button b, TMP_Text t, string label, Action click)
         {
-            if (t == null) t = b.GetComponentInChildren<TMP_Text>(true);
-            if (t != null)
+            // 버튼 안 글자 칸을 전부 바꾼다 (켜진 칸/꺼진 칸이 따로 있는 버튼이 있어서 하나만 바꾸면 "No" 가 남는다)
+            var all = new List<TMP_Text>(b.GetComponentsInChildren<TMP_Text>(true));
+            if (t != null && !all.Contains(t)) all.Add(t);
+            foreach (TMP_Text x in all)
             {
-                t.text = label ?? "";
+                SetText(x, label ?? "");
                 // 원래 [예]/[아니요] 크기 버튼이라 긴 글자는 줄여서 넣는다
-                t.enableAutoSizing = true;
-                t.fontSizeMax = t.fontSize;
-                t.fontSizeMin = Mathf.Max(6f, t.fontSize * 0.5f);
-                t.enableWordWrapping = false;
+                x.enableAutoSizing = true;
+                x.fontSizeMax = x.fontSize;
+                x.fontSizeMin = Mathf.Max(6f, x.fontSize * 0.5f);
+                x.enableWordWrapping = false;
             }
             b.onClick = new Button.ButtonClickedEvent(); // 복제된 원래 동작(외출 확인) 제거
             b.onClick.AddListener(() =>
@@ -166,6 +190,18 @@ namespace MapExtension
                 click();
             });
             b.interactable = true;
+        }
+
+        // 글자 + 그 글자에 맞는 폰트 (게임 ScriptFontSwap: 한글이면 게임 한국어 폰트).
+        // 복제본은 원래 창의 폰트 교체 스크립트가 지워져서 영어 폰트 + 한글 대체 글꼴이 섞여 보인다.
+        private static void SetText(TMP_Text t, string text)
+        {
+            if (t == null) return;
+            if (t is TextMeshProUGUI u)
+            {
+                try { ScriptFontSwap.Apply(u, text); return; } catch { }
+            }
+            t.text = text;
         }
 
         // 외출 지도 캔버스 층 (지도 위로 올릴 기준)

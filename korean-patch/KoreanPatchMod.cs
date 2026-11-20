@@ -11,7 +11,7 @@ namespace KoreanPatch
 {
     // 한국어일 때 장식용(Lubrifont)·SF(Tektur, Tektur Bold) 역할 폰트만 물마루(Mulmaru)로 바꾼다.
     // 본문(Noto Sans/Serif 등)과 손글씨(Caveat)는 원래 한국어 폰트 그대로.
-    // 한국어 번역 모드(KoreanTranslation)는 기본 설정에서 SF 칸을 본문 폰트로 바꾸므로, 이 패치는 그보다 늦게(Priority.Last) 돈다.
+    // 한국어 번역(translation/, 원본 KoreanTranslation)은 기본 설정에서 SF 칸을 본문 폰트로 바꾸므로, 이 패치는 그보다 늦게(Priority.Last) 돈다.
     public class KoreanPatchMod : IMod
     {
         internal const string ModId = "korean-patch";
@@ -19,6 +19,7 @@ namespace KoreanPatch
         public void Init(ModManifest manifest)
         {
             Debug.Log("[KoreanPatch] init v" + (manifest != null ? manifest.ModVersion : "?"));
+            Translation.KoreanMod.Init(manifest); // 한국어 번역 (원본 Korean Translation by Gangmin(RNIN))
         }
 
         public void OnEnable()

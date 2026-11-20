@@ -3,8 +3,8 @@
   <ID>korean-patch</ID>
   <Name>한국어 패치</Name>
   <Author>me</Author>
-  <ModVersion>0.1.2</ModVersion>
-  <Description>Korean display font swap: uses the Mulmaru pixel font for the display (Lubrifont) and sci-fi (Tektur) font roles in Korean. Body text keeps the normal Korean font. Works alongside the Korean Translation mod.</Description>
+  <ModVersion>0.3.0</ModVersion>
+  <Description>Korean translation + Korean display font. Adds Korean to the language list (translation by Gangmin(RNIN), from the Korean Translation workshop mod 1.0.10, merged for personal use) and uses the Mulmaru pixel font for the display (Lubrifont) and sci-fi (Tektur) font roles. Body text keeps the normal Korean font.</Description>
   <Assemblies>
     <Assembly>KoreanPatch.dll</Assembly>
   </Assemblies>

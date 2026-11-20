@@ -34,6 +34,15 @@ namespace MapExtension
             { "vme_retired_rancher",        new Vector2(0.86f, 0.82f) },
         };
 
+        // 수색처(FarmLocation) 위치 = 미확인 장소 자리 (같은 key)
+        private static bool UnknownPos(AfterhourLocation loc, out Vector2 p)
+        {
+            p = Vector2.zero;
+            if (!(loc is FarmLocation fl)) return false;
+            foreach (var u in UnknownSpots) if (u.key == fl.Key) { p = u.pos; return true; }
+            return false;
+        }
+
         // 위치를 모르는 장소(다른 모드)는 이 자리들에 차례로 놓는다
         private static readonly Vector2[] Spare =
         {
@@ -140,8 +149,14 @@ namespace MapExtension
             {
                 if (loc == null || loc is BranchLocation) continue; // 분점은 분점 마커로 따로
                 Vector2 p;
-                if (!Positions.TryGetValue(loc.Id ?? "", out p))
+                if (!Positions.TryGetValue(loc.Id ?? "", out p) && !UnknownPos(loc, out p))
                     p = Spare[Math.Min(spare++, Spare.Length - 1)];
+                // 아직 망원경으로 못 찾은 수색처: 예전처럼 흐린 "미확인 장소"
+                if (loc is FarmLocation fl && !(loc is BranchLocation) && !fl.IsDiscovered())
+                {
+                    CreateLockedLabel(UnknownName, UnknownDesc, p, "unknown");
+                    continue;
+                }
                 markers.Add(CreateMarker(loc, p, !listed.Contains(loc)));
             }
 
@@ -151,7 +166,11 @@ namespace MapExtension
                 CreateLockedLabel(spot.name, spot.desc, spot.pos);
             // 아직 안 만든 수색처: "미확인 장소" (망원경 해금 예정)
             foreach (var u in UnknownSpots)
-                CreateLockedLabel(UnknownName, UnknownDesc, u.pos, "unknown");
+            {
+                bool made = false;
+                foreach (FarmLocation l in FarmLocations.All) if (l.Key == u.key) { made = true; break; }
+                if (!made) CreateLockedLabel(UnknownName, UnknownDesc, u.pos, "unknown"); // 아직 안 만든 자리만
+            }
 
             // 분점 부지 / 내 분점
             branchMarkers.Clear();
@@ -600,11 +619,17 @@ namespace MapExtension
             var sb = new StringBuilder();
             if (loc is FarmLocation farm)
             {
-                int ready = 0;
+                int ready = 0, total = 0, fillSum = 0;
                 foreach (FarmSpot s in farm.Spots)
+                {
+                    if (s.Telescope) continue;
+                    total++;
+                    fillSum += farm.FillPercent(s);
                     if (farm.DaysUntilRefill(s) == 0) ready++;
+                }
                 sb.Append(farm.Desc).Append('\n');
-                sb.Append("<color=#9a9aa8>뒤질 수 있는 곳: ").Append(ready).Append(" / ").Append(farm.Spots.Count).Append("</color>");
+                sb.Append("<color=#9a9aa8>뒤질 수 있는 곳: ").Append(ready).Append(" / ").Append(total).Append("</color>  ")
+                  .Append(FarmHotspot.FillText(total > 0 ? fillSum / total : 0));
                 return sb.ToString();
             }
             if (loc is RetiredMerchantLocation rm)

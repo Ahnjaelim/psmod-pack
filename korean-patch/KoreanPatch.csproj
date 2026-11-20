@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <Reference Include="Assembly-CSharp"><HintPath>$(GameManaged)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameManaged)\Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(GameManaged)\0Harmony.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(GameManaged)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
@@ -21,13 +22,27 @@
     <Reference Include="UnityEngine.TextCoreFontEngineModule"><HintPath>$(GameManaged)\UnityEngine.TextCoreFontEngineModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.TextMeshPro"><HintPath>$(GameManaged)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Unity.Localization"><HintPath>$(GameManaged)\Unity.Localization.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(GameManaged)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(GameManaged)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.ResourceManager"><HintPath>$(GameManaged)\Unity.ResourceManager.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 
   <Target Name="CopyToMods" AfterTargets="Build">
-    <MakeDir Directories="$(ModOut);$(ModOut)\Fonts" />
+    <MakeDir Directories="$(ModOut);$(ModOut)\Fonts;$(ModOut)\data" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModOut)" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)manifest.xml" DestinationFolder="$(ModOut)" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)Fonts\Mulmaru.ttf" DestinationFolder="$(ModOut)\Fonts" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)data\ko.tsv;$(MSBuildThisFileDirectory)data\ko-hardcoded.tsv" DestinationFolder="$(ModOut)\data" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 다른 모드 번역: 그 모드 폴더의 Localization/ko.csv 로 복사 (모드가 설치돼 있을 때만).
+       CorpPresence (Workshop 3828913695): 모드 업데이트로 파일이 지워지면 다시 빌드하면 된다. -->
+  <PropertyGroup>
+    <CorpPresenceDir>$(MSBuildThisFileDirectory)..\..\..\..\workshop\content\4348910\3828913695</CorpPresenceDir>
+  </PropertyGroup>
+  <Target Name="CopyModTranslations" AfterTargets="CopyToMods" Condition="Exists('$(CorpPresenceDir)\CorpPresence.dll')">
+    <MakeDir Directories="$(CorpPresenceDir)\Localization" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)data\mod-translations\corppresence-ko.csv" DestinationFiles="$(CorpPresenceDir)\Localization\ko.csv" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

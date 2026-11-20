@@ -10,9 +10,9 @@ on another machine find the Steam install). Each folder is a separate mod:
 
 | Folder | Mod name (ID) | Deployed to | Version |
 |---|---|---|---|
-| `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` | 2.23.3 |
-| `map-extension/` | 지도 확장 (`map-extension`) | `Mods/MapExtension` | 0.30.4 |
-| `korean-patch/` | 한국어 패치 (`korean-patch`) | `Mods/KoreanPatch` | 0.1.2 |
+| `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` | 2.26.0 |
+| `map-extension/` | 지도 확장 (`map-extension`) | `Mods/MapExtension` | 0.40.2 |
+| `korean-patch/` | 한국어 패치 (`korean-patch`) | `Mods/KoreanPatch` | 0.3.0 |
 
 `map-extension/NOTES.md` is the detailed per-version design log (Korean). Read it before touching map-extension.
 
@@ -53,7 +53,7 @@ Useful anchors: `MapUIManager` (outing travel/return), `TransitUI` (outing map w
   [돌아가기] button (go home, no confirm).
 - `FarmLocation.cs` — search locations (pharmacy only for now). Hotspots → confirm → loot box window with Tarkov-style
   stripe covers (`LootCover.cs`, tag `VME_UNREVEALED_TAG`, read via `item.state` not `IsTag`). Floor items persist per location.
-  `TestEnergy = 100` is a test value — **set to 0 before release**. Placeholder background `Map/bg_placeholder.png`.
+  `TestEnergy` = 0 (real energy) since 0.40.1. Placeholder background `Map/bg_placeholder.png`.
 - `Roaming.cs` — leaving a location opens the map directly (inside the return blackscreen) instead of the shop; keeps the carried
   backpack; returning never consumes the nightly outing; energy refills once per night (`ScavHelper.ResetScavenging` prefix).
 - `OutingHud.cs` — bottom-left HUD while outside / map open: cash, HP = (10 − woundState) × 10, energy.
@@ -61,26 +61,37 @@ Useful anchors: `MapUIManager` (outing travel/return), `TransitUI` (outing map w
 - `RetiredMerchants.cs` — retired merchant houses (Jackson-style stage, visit weekday, vanilla portrait per save).
 - Branches (분점), idle simulation:
   - `Branches.cs` — 3 sites (lower/downtown/upper). Each has a virtual 17×10 stock inventory filled from the main shop.
-    Every morning (`PlayerStore.BeginDay` postfix) `BranchSim.RunDay` spawns visitors. Visitor count = range × attractiveness/400
+    Every morning (`PlayerStore.BeginDay` postfix) `BranchSim.RunDay` spawns visitors. Visitor count = range × branch attractiveness/400 (own value per branch, starts 0; was the main shop value before 0.36)
     (clamped 0.6–1.8). 10 visitor types, weighted per site and multiplied by faction reputation `1 + rep/200` (0.25–2).
     Each type has a budget and liked item types. Price = `GetCurrentValue(retail markup + events) × site multiplier`.
     Contraband never sells. Optional "hold on price-drop event". Logs keep the last 7 days.
   - Auto-fill searches the shop inventory including containers and fridges. It skips other machines, pinned items,
     contraband and containers themselves. Filter modes: all liked / allow list / block list.
-  - `BranchMonitor.cs` — clone of the calendar monitor window, tabs = branches, draggable; blocks item raycasts behind it with an
+  - `BranchMonitor.cs` — clone of the calendar monitor window, web-app layout: top tabs = [전체] + branches (4th tab cloned), left sidebar pages 재고/판매 기록/손님/통계/설정, right = toolbar + scroll table; draggable; blocks item raycasts behind it with an
     empty `TreeNodeRender`; sets `UIDragHandler.isDraggingAnyUI` while dragging.
   - `BranchRestockWindow.cs` — hopper-style settings window (CustomUIBuilder): daily auto-fill, price-drop hold, filter mode,
     item list. `UseSearch = false` → pick items by clicking them in the shop (blocks game clicks via `ItemPinHelper.BlocksClicks`
     postfix); `true` → name search (`ItemIndex`).
-  - `BranchPanel.cs` — the bottom-left [분점] button, placed in the game's store UI canvas (behind loading screens/menus).
+  - `BranchPanel.cs` — the bottom-left [분점] button, placed in the item window canvas just before `RenderHandler.windowRootObject` (behind shop items/windows, like the game background UI).
   - `BranchLocation` — owned branches are also enterable outing locations (floor works as storage).
 - `SaveDb.cs` — all mod state in the save: `farm/<loc>/floor`, `farm/<loc>/box/<spot>`, `branch/<key>`,
   `branch/<key>/stock|log|auto`, `branch/last_paid_day`. Written in a `PlayerStore.SaveGame` prefix, read on `OnGameLoadedLate`.
 
+## korean-patch (0.3.0)
+
+- `translation/` + `data/ko.tsv`, `data/ko-hardcoded.tsv` = the Korean Translation workshop mod (3828896687, v1.0.10, by Gangmin(RNIN)),
+  decompiled and merged for personal use (namespace `KoreanPatch.Translation`, mod id/data paths changed). The user unsubscribed the original.
+  It is someone else's work with no stated license: ask before pushing it to the public repo.
+- `data/mod-translations/corppresence-ko.csv` = Korean for the CorpPresence workshop mod (3828913695). The build copies it into that
+  mod's folder as `Localization/ko.csv` (the game's ModLoader loads `<mod>/Localization/<locale>.csv`; CorpPresence reads it via
+  `LoadedMod.Localization`). Only keyed strings; unkeyed `L.T(zh,en)` text stays English. Rebuild after a CorpPresence update.
+- `KoreanPatchMod.cs` = Mulmaru font for display/sci-fi roles (runs after the translation's font patch).
+
 ## Open items / plans
 
 - Energy (scav attempts) balance is deferred by the user: leave as is for now.
-- Planned: search-location unlock chain ("Into the Dead" style): start with 2 open (pharmacy + hardware store), clearing every
-  spot once reveals a telescope spot that unlocks 1–2 preset nearby locations. Candidate list = `TransitMap.UnknownSpots`.
+- Search-location unlock chain (0.38): `FarmLocationData.cs` = 19 locations on the `TransitMap.UnknownSpots` positions (placeholder
+  background), `StartOpen` = pharmacy + hardware, `Chain` = what each location's telescope unlocks. Telescope spot appears once every
+  spot was searched once; unlock state = afterhour counter `vme_farm_<key>`/`unlocked`. Undiscovered ones show as "미확인 장소".
 - Ideas not done: branch visitor budget bonus / tier from attractiveness, contraband raids.
 - Nothing has been play-tested since ~0.29; the user reports issues with screenshots.
