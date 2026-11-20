@@ -166,3 +166,6 @@
 - 막힘 방지 우회로(정보 구매/망원경 아이템) 검토
 - 0.14.3: 임시 배경 Map/bg_placeholder.png (원래 "임시 배경.png"). 새 장소는 BackgroundFile 비워 두거나 파일 없으면 이걸 씀
 - 0.14.4: 총포상.png → Map/bg_gunsmith.png, 은퇴한 총기 장인 배경으로
+- 0.15.0: 미확인 장소 19곳 (TransitMap.UnknownSpots: key/실제 이름/단계/위치). icon_unknown 회색, 툴팁만. 만들면 FarmLocations 로 옮기고 목록에서 뺀다
+- 0.16.0: 팝업(수색 확인, 전당포로 돌아가기)을 폐품 수집 창(UIScavengingPanel) 복제 스타일로 (StyledDialog). 게임 스크립트 제거 후 Button 재연결, 실패 시 기본 확인 창
+- 0.16.1: 폐품 수집 창 복제 팝업 되돌림 (보기 이상함) → 기본 확인 창. StyledDialog 삭제

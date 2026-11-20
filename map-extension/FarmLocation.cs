@@ -507,10 +507,10 @@ namespace MapExtension
             int now = ScavHelper.GetScavTimeLeft();
             if (now < spot.Cost) { Notify("기력이 부족하다. (필요 " + spot.Cost + ", 남은 기력 " + now + ")"); return; }
             int after = now - spot.Cost;
+            try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
             string body = "<b>수색</b>\n\n" + spot.Desc + "\n남은 기력: " + now + " → 수색 후: <color=#ff5a5a>" + after + "</color>";
             if (spot.MinorWound + spot.MajorWound > 0f)
                 body += "\n<color=#9a9aa8>부상 위험: 경상 " + spot.MinorWound.ToString("0.#") + "% / 중상 " + spot.MajorWound.ToString("0.#") + "%</color>";
-            try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
             GenericConfirmationUIManager.Instance.OpenPanel(body, "수색 (기력 " + spot.Cost + ")", "취소", () => StartCoroutine(Search()));
         }
 

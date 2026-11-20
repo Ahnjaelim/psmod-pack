@@ -146,6 +146,9 @@ namespace MapExtension
             infoMarkers.Clear();
             foreach (var spot in RetiredSpots)
                 CreateLockedLabel(spot.name, spot.desc, spot.pos);
+            // 아직 안 만든 수색처: "미확인 장소" (망원경 해금 예정)
+            foreach (var u in UnknownSpots)
+                CreateLockedLabel(UnknownName, UnknownDesc, u.pos, "unknown");
 
             HomeSelected = false;
             home = CreateHomeMarker(HomePosition);
@@ -229,10 +232,36 @@ namespace MapExtension
             ("카르텔 거점", "겉으로는 평범한 창고. 안에서 셈하는 돈은 평범하지 않다.", new Vector2(0.70f, 0.89f)),
         };
 
+        // ---- 미확인 장소: 앞으로 만들 수색처 자리 (key / 실제 이름 / 단계 / 위치). 만들면 FarmLocations 로 옮기고 여기서 뺀다 ----
+        private const string UnknownName = "미확인 장소";
+        private const string UnknownDesc = "아직 아무도 확인하지 않은 곳. 높은 곳에서 내려다보면 뭔가 보일지도 모른다.";
+        internal static readonly (string key, string name, int tier, Vector2 pos)[] UnknownSpots =
+        {
+            ("hardware",     "버려진 철물점",       1, new Vector2(0.48f, 0.33f)),
+            ("convenience",  "편의점",              2, new Vector2(0.66f, 0.52f)),
+            ("apartment",    "빈 아파트",           2, new Vector2(0.60f, 0.36f)),
+            ("laundry",      "세탁소",              2, new Vector2(0.36f, 0.55f)),
+            ("clinic",       "동네 의원",           2, new Vector2(0.73f, 0.62f)),
+            ("radio_shop",   "전파사",              2, new Vector2(0.45f, 0.66f)),
+            ("sewer",        "하수구 입구",         2, new Vector2(0.52f, 0.78f)),
+            ("lost_found",   "정거장 분실물 보관소", 3, new Vector2(0.43f, 0.06f)),
+            ("loading_dock", "화물 하역장",         3, new Vector2(0.14f, 0.27f)),
+            ("factory",      "폐공장",              3, new Vector2(0.08f, 0.44f)),
+            ("garage",       "수리소",              3, new Vector2(0.84f, 0.38f)),
+            ("school",       "폐교",                3, new Vector2(0.18f, 0.12f)),
+            ("soup_kitchen", "무료 급식소",         3, new Vector2(0.30f, 0.74f)),
+            ("church",       "무너진 교회",         3, new Vector2(0.81f, 0.10f)),
+            ("checkpoint",   "보안대 검문소 폐허",  4, new Vector2(0.61f, 0.26f)),
+            ("rebel_hideout","혁명군 은신처 흔적",  4, new Vector2(0.40f, 0.22f)),
+            ("cartel_storage","카르텔 창고",        4, new Vector2(0.58f, 0.92f)),
+            ("mansion",      "상류층 저택 빈집",    4, new Vector2(0.93f, 0.58f)),
+            ("hospital",     "폐병원",              4, new Vector2(0.20f, 0.90f)),
+        };
+
         // 잠긴 자리: 클릭은 안 되고 마우스를 올리면 설명 툴팁만
         private static readonly List<Marker> infoMarkers = new List<Marker>();
 
-        private static void CreateLockedLabel(string name, string desc, Vector2 p)
+        private static void CreateLockedLabel(string name, string desc, Vector2 p, string icon = null)
         {
             float x = p.x * AreaW, y = p.y * AreaH;
             RectTransform box = NewRect(root.transform, "Locked_" + name, x - 110f, y - 18f, 220f, 72f);
@@ -242,7 +271,9 @@ namespace MapExtension
             marker.tipBody = desc;
             var hit = box.gameObject.AddComponent<Image>();
             hit.color = new Color(0f, 0f, 0f, 0f);
-            marker.inner = NewImage(box, "Inner", 98f, 12f, 24f, 24f, Locked);
+            // 아이콘이 있으면 회색 아이콘 (어두운 네모 색은 지도 위에서 안 보임)
+            marker.inner = NewImage(box, "Inner", 98f, 12f, 24f, 24f, icon != null ? Unavailable : Locked);
+            if (icon != null) SetIcon(marker.inner, icon);
             marker.label = NewText(box, "Label", 0f, 40f, 220f, 30f, 20f, Unavailable, TextAlignmentOptions.Center);
             ScriptFontSwap.Apply(marker.label, name);
             infoMarkers.Add(marker);
