@@ -81,7 +81,7 @@ Useful anchors: `MapUIManager` (outing travel/return), `TransitUI` (outing map w
 
 - `translation/` + `data/ko.tsv`, `data/ko-hardcoded.tsv` = the Korean Translation workshop mod (3828896687, v1.0.10, by Gangmin(RNIN)),
   decompiled and merged for personal use (namespace `KoreanPatch.Translation`, mod id/data paths changed). The user unsubscribed the original.
-  It is someone else's work with no stated license: ask before pushing it to the public repo.
+  Someone else's work with no stated license; the user decided to keep it in the repo (personal use only, committed in a0a46e9).
 - `data/mod-translations/corppresence-ko.csv` = Korean for the CorpPresence workshop mod (3828913695). The build copies it into that
   mod's folder as `Localization/ko.csv` (the game's ModLoader loads `<mod>/Localization/<locale>.csv`; CorpPresence reads it via
   `LoadedMod.Localization`). Only keyed strings; unkeyed `L.T(zh,en)` text stays English. Rebuild after a CorpPresence update.
