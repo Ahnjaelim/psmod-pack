@@ -30,10 +30,11 @@ namespace MapExtension
         public int RefillDays = 3;
     }
 
-    internal sealed class FarmLocation : AfterhourLocation
+    internal class FarmLocation : AfterhourLocation
     {
         public string Key, Name, Desc;
         public List<FarmSpot> Spots = new List<FarmSpot>();
+        protected virtual bool RefillsEnergy => true; // 도착하면 기력 채움 (분점은 아님)
         public Color BgColor = new Color32(0x1c, 0x1a, 0x26, 0xff);
         public string BackgroundFile; // Map/ 아래 PNG (없으면 임시 배경)
         internal const string PlaceholderBackground = "bg_placeholder.png";
@@ -160,10 +161,13 @@ namespace MapExtension
 
         public override void Arrive()
         {
-            // 쓰레기장과 같은 규칙: 도착할 때 수색 시간을 새로 채운다 (외출은 하룻밤 한 곳)
-            ScavHelper.ResetScavenging();
-            // 테스트용: 도착하면 기력을 TestEnergy 로 채운다 (0 이면 끔 = 게임 기본 5)
-            if (TestEnergy > 0) PlayerStore.Instance.scavengingAttempts = ScavHelper.GetMaxScavAttempts() - TestEnergy;
+            // 쓰레기장과 같은 규칙: 도착할 때 수색 시간을 새로 채운다. 단 하룻밤 한 번만 (싸돌아다니며 다시 채우기 방지)
+            if (RefillsEnergy && Roaming.EnergyNotRefilledTonight())
+            {
+                ScavHelper.ResetScavenging();
+                // 테스트용: 기력을 TestEnergy 로 채운다 (0 이면 끔 = 게임 기본 5)
+                if (TestEnergy > 0) PlayerStore.Instance.scavengingAttempts = ScavHelper.GetMaxScavAttempts() - TestEnergy;
+            }
             if (stage != null)
             {
                 var bg = stage.transform.Find("Background")?.GetComponent<SpriteRenderer>();
@@ -171,7 +175,6 @@ namespace MapExtension
                 foreach (FarmHotspot h in stage.GetComponentsInChildren<FarmHotspot>(true)) h.Refresh();
             }
             try { BuildLabels(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] labels: " + ex.Message); }
-            try { BuildEnergyBar(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] energy bar: " + ex.Message); }
             try { RestoreFloor(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] restore floor: " + ex.Message); }
         }
 
@@ -334,7 +337,6 @@ namespace MapExtension
         public override void Leave()
         {
             try { StashFloor(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] stash floor: " + ex.Message); }
-            DestroyEnergyBar();
             if (labelLayer != null) UnityEngine.Object.Destroy(labelLayer);
             labelLayer = null;
             if (stage == null) return;
@@ -344,90 +346,9 @@ namespace MapExtension
         // 패널: 잭슨 박사네처럼 게임의 "돌아가기" 패널만 (설명/기력 창 없음)
         public override GameObject PanelObject => MapUIManager.Instance != null ? MapUIManager.Instance.UIUpgradeMerchantPanel : null;
 
-        // ---- 기력 바: 바닥 창(외출 인벤) 위쪽 가운데, 체력바처럼 ----
-        private RectTransform energyBar, energyFill;
-        private TextMeshProUGUI energyText;
-        private static readonly Color BarBg = new Color32(0x24, 0x1f, 0x2e, 0xf0);
-        private static readonly Color BarEdge = new Color32(0x8b, 0xc4, 0xbe, 0xff);
-        private static readonly Color BarFull = new Color32(0x4d, 0xf0, 0xe0, 0xff);
-        private static readonly Color BarLow = new Color32(0xff, 0x5a, 0x5a, 0xff);
-        private const float BarW = 165f, BarH = 12f; // 캔버스 단위 (칸 16)
+        // 기력/체력 바는 OutingHud (화면 왼쪽 아래, 외출 중 어디서나)
+        internal void RefreshPanel() { }
 
-        private void BuildEnergyBar()
-        {
-            DestroyEnergyBar();
-            PixelWindow bag = EmporiumEntry.Instance != null ? EmporiumEntry.Instance.afterhourWindow : null;
-            if (bag == null || bag.handler == null) return;
-            var go = new GameObject("VME_EnergyBar", typeof(RectTransform));
-            go.transform.SetParent(bag.handler.transform, false);
-            go.transform.SetAsLastSibling();
-            energyBar = (RectTransform)go.transform;
-            // 창 RectTransform 은 왼쪽 위 기준 + 크기 0 이라 가운데 앵커가 안 먹는다 → 창 너비(widthPixels)로 가운데 계산
-            energyBar.anchorMin = energyBar.anchorMax = new Vector2(0f, 1f);
-            energyBar.pivot = new Vector2(0.5f, 0f);
-            energyBar.anchoredPosition = new Vector2(bag.widthPixels * 0.5f, 6f);
-            energyBar.sizeDelta = new Vector2(BarW, BarH);
-
-            Image edge = go.AddComponent<Image>();
-            edge.color = BarEdge;
-            edge.raycastTarget = false;
-            Image bg = BarRect(energyBar, "Bg", 1f, BarW - 2f, BarH - 2f, BarBg);
-            Image fill = BarRect(energyBar, "Fill", 1f, BarW - 2f, BarH - 2f, BarFull);
-            energyFill = fill.rectTransform;
-
-            var tgo = new GameObject("Text", typeof(RectTransform));
-            tgo.transform.SetParent(energyBar, false);
-            energyText = tgo.AddComponent<TextMeshProUGUI>();
-            TMP_FontAsset font = FontLoader.Instance != null ? (FontLoader.Instance.notoSans_Normal ?? FontLoader.Instance.notoSans) : null;
-            if (font != null) energyText.font = font;
-            energyText.fontSize = 8f;
-            energyText.alignment = TextAlignmentOptions.Center;
-            energyText.enableWordWrapping = false;
-            energyText.overflowMode = TextOverflowModes.Overflow;
-            energyText.raycastTarget = false;
-            energyText.color = Color.white;
-            var trt = energyText.rectTransform;
-            trt.anchorMin = Vector2.zero;
-            trt.anchorMax = Vector2.one;
-            trt.offsetMin = trt.offsetMax = Vector2.zero;
-            RefreshPanel();
-        }
-
-        private static Image BarRect(RectTransform parent, string name, float inset, float w, float h, Color c)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 0f);
-            rt.anchoredPosition = new Vector2(inset, inset);
-            rt.sizeDelta = new Vector2(w, h);
-            var img = go.AddComponent<Image>();
-            img.color = c;
-            img.raycastTarget = false;
-            return img;
-        }
-
-        private void DestroyEnergyBar()
-        {
-            if (energyBar != null) UnityEngine.Object.Destroy(energyBar.gameObject);
-            energyBar = null;
-            energyFill = null;
-            energyText = null;
-        }
-
-        internal void RefreshPanel()
-        {
-            if (energyBar == null) return;
-            int now = ScavHelper.GetScavTimeLeft();
-            int max = TestEnergy > 0 ? TestEnergy : ScavHelper.GetMaxScavAttempts();
-            float r = max > 0 ? Mathf.Clamp01((float)now / max) : 0f;
-            energyFill.sizeDelta = new Vector2((BarW - 2f) * r, BarH - 2f);
-            energyFill.GetComponent<Image>().color = Color.Lerp(BarLow, BarFull, Mathf.Clamp01(r * 2f));
-            string t = PlayerStore.Instance.healthData.isWoundedFresh ? "부상: 수색 불가" : "기력 " + now + " / " + max;
-            if (energyText.text != t) ScriptFontSwap.Apply(energyText, t);
-        }
-
-        public override void Tick() => RefreshPanel();
 
         // ---- 고갈 상태 (세이브에 저장) ----
         internal int Today => StoreStation.Instance != null ? StoreStation.Instance.dayCounter : 0;
@@ -511,7 +432,7 @@ namespace MapExtension
             string body = "<b>수색</b>\n\n" + spot.Desc + "\n남은 기력: " + now + " → 수색 후: <color=#ff5a5a>" + after + "</color>";
             if (spot.MinorWound + spot.MajorWound > 0f)
                 body += "\n<color=#9a9aa8>부상 위험: 경상 " + spot.MinorWound.ToString("0.#") + "% / 중상 " + spot.MajorWound.ToString("0.#") + "%</color>";
-            GenericConfirmationUIManager.Instance.OpenPanel(body, "수색 (기력 " + spot.Cost + ")", "취소", () => StartCoroutine(Search()));
+            Dialogs.Confirm(body, "수색", "취소", () => StartCoroutine(Search()));
         }
 
         private IEnumerator Search()
@@ -750,6 +671,9 @@ namespace MapExtension
 
         internal static void Register()
         {
+            // 분점도 같은 구조의 장소 (세이브 DB 바닥 저장도 같이 하도록 목록에 넣는다)
+            foreach (BranchLocation b in Branches.Locations)
+                if (!All.Contains(b)) All.Add(b);
             foreach (FarmLocation loc in All)
             {
                 try { ModHelper.AddAfterhourLocation(loc); }

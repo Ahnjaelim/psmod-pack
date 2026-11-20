@@ -17,11 +17,14 @@ namespace MapExtension
         {
             RetiredMerchants.Register();
             FarmLocations.Register();
+            Roaming.Register();
             ModHook.OnGameLoadedLate += OnGameLoaded;
         }
 
         private static void OnGameLoaded()
         {
+            try { BranchPanel.Ensure(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] branch panel: " + ex.Message); }
+            try { OutingHud.Ensure(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] hud: " + ex.Message); }
             try { SaveDb.Read(); }
             catch (Exception ex) { Debug.LogWarning("[MapExtension] save db read: " + ex.Message); }
         }
@@ -29,6 +32,9 @@ namespace MapExtension
         public void OnDisable()
         {
             ModHook.OnGameLoadedLate -= OnGameLoaded;
+            Roaming.Unregister();
+            OutingHud.Remove();
+            BranchPanel.Remove();
             RetiredMerchants.Unregister();
             try
             {

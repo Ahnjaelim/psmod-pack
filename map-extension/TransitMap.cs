@@ -122,6 +122,9 @@ namespace MapExtension
             img.uvRect = CoverUv(bg.width, bg.height, AreaW, AreaH);
             root.AddComponent<BackgroundClick>();
 
+            // 구역 이름 (글자만, 마커보다 뒤)
+            foreach (var z in Districts) CreateDistrictLabel(z.name, z.pos, z.color);
+
             int spare = 0;
             // 발견한 장소 + 아직 해금 안 된 장소(이름 없는 잠긴 네모)
             var all = new List<AfterhourLocation>(listed);
@@ -135,7 +138,7 @@ namespace MapExtension
             }
             foreach (AfterhourLocation loc in all)
             {
-                if (loc == null) continue;
+                if (loc == null || loc is BranchLocation) continue; // 분점은 분점 마커로 따로
                 Vector2 p;
                 if (!Positions.TryGetValue(loc.Id ?? "", out p))
                     p = Spare[Math.Min(spare++, Spare.Length - 1)];
@@ -150,11 +153,125 @@ namespace MapExtension
             foreach (var u in UnknownSpots)
                 CreateLockedLabel(UnknownName, UnknownDesc, u.pos, "unknown");
 
+            // 분점 부지 / 내 분점
+            branchMarkers.Clear();
+            foreach (BranchSite b in Branches.All) branchMarkers.Add(CreateBranchMarker(b));
+
             HomeSelected = false;
             home = CreateHomeMarker(HomePosition);
 
             BuildInfoBox();
+            try { BuildHomeButton(frame); } catch (Exception ex) { Debug.LogWarning("[MapExtension] home button: " + ex.Message); }
             Refresh();
+        }
+
+        // ---- [이동] 버튼 왼쪽 [돌아가기]: 누르면 바로 가게로 (확인 없음) ----
+        private static GameObject homeButton;
+
+        private static void BuildHomeButton(TransitFrame frame)
+        {
+            if (homeButton != null) UnityEngine.Object.Destroy(homeButton);
+            homeButton = null;
+            if (frame.travelButton == null) return;
+            // 이동 버튼 묶음(CanvasGroup 이 위에 있으면 그것째)을 복제
+            Transform src = frame.travelButton.transform;
+            if (frame.travelGroup != null && src.IsChildOf(frame.travelGroup.transform)) src = frame.travelGroup.transform;
+            // 버튼 너비 줄이기 (지도를 열 때마다 줄지 않게 한 번만)
+            const float ButtonScale = 0.55f, ButtonGap = 14f;
+            var srt0 = (RectTransform)src;
+            if (src.GetComponent<ResizedMark>() == null)
+            {
+                float oldW = srt0.rect.width;
+                float oldCenter = CenterX(srt0);
+                ShrinkWidth(src, oldW, ButtonScale);
+                src.gameObject.AddComponent<ResizedMark>().center = oldCenter;
+            }
+            float pairCenter = src.GetComponent<ResizedMark>().center;
+            float bw = srt0.rect.width;
+            // [이동] 은 왼쪽, [돌아가기] 는 오른쪽. 두 버튼 묶음의 가운데 = 원래 이동 버튼 가운데
+            SetCenterX(srt0, pairCenter - (bw + ButtonGap) * 0.5f);
+            string pOuter = PathFrom(frame.travelOuter != null ? frame.travelOuter.transform : null, src);
+            string pLabel = PathFrom(frame.travelLabel != null ? frame.travelLabel.transform : null, src);
+            string pButton = PathFrom(frame.travelButton.transform, src);
+
+            var holder = new GameObject("VME_Holder");
+            holder.SetActive(false);
+            GameObject go = UnityEngine.Object.Instantiate(src.gameObject, holder.transform, false);
+            go.name = "VME_HomeButton";
+            foreach (MonoBehaviour mb in go.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb == null) continue;
+                string ns = mb.GetType().Namespace ?? "";
+                if (ns.StartsWith("UnityEngine") || ns.StartsWith("TMPro")) continue;
+                UnityEngine.Object.DestroyImmediate(mb); // 게임 hover 스크립트 등
+            }
+            go.transform.SetParent(src.parent, false);
+            UnityEngine.Object.Destroy(holder);
+            var rt = (RectTransform)go.transform;
+            var srt = (RectTransform)src;
+            rt.anchoredPosition = srt.anchoredPosition + new Vector2(bw + ButtonGap, 0f);
+            go.transform.SetSiblingIndex(src.GetSiblingIndex() + 1);
+
+            CanvasGroup cg = go.GetComponent<CanvasGroup>();
+            if (cg != null) { cg.alpha = 1f; cg.interactable = true; cg.blocksRaycasts = true; }
+            Transform bt = Find(go.transform, pButton);
+            Button b = bt != null ? bt.GetComponent<Button>() : null;
+            Image outer = Find(go.transform, pOuter)?.GetComponent<Image>();
+            TMP_Text label = Find(go.transform, pLabel)?.GetComponent<TMP_Text>();
+            if (b == null) { UnityEngine.Object.Destroy(go); return; }
+            if (label != null) { label.text = "돌아가기"; label.color = TransitStyle.BUTTON_BORDER; }
+            if (outer != null) outer.color = TransitStyle.BUTTON_BORDER;
+            b.onClick = new Button.ButtonClickedEvent();
+            b.interactable = true;
+            b.onClick.AddListener(() =>
+            {
+                try { EmporiumAudioPlayer.Instance.audioButton2.Play(); } catch { }
+                MapUIManager.Instance?.CloseUI();
+            });
+            var hover = b.gameObject.AddComponent<HoverTint>();
+            hover.outer = outer;
+            hover.label = label;
+            homeButton = go;
+        }
+
+        // 부모 좌표에서 가운데 x (앵커가 한 점일 때)
+        private static float CenterX(RectTransform rt) => rt.anchoredPosition.x + (0.5f - rt.pivot.x) * rt.rect.width;
+
+        private static void SetCenterX(RectTransform rt, float cx)
+        {
+            rt.anchoredPosition = new Vector2(cx - (0.5f - rt.pivot.x) * rt.rect.width, rt.anchoredPosition.y);
+        }
+
+        // root 와 그 안에서 root 와 비슷하게 넓은(늘림 앵커가 아닌) 요소들의 너비를 factor 배로
+        private static void ShrinkWidth(Transform root, float rootWidth, float factor)
+        {
+            foreach (RectTransform r in root.GetComponentsInChildren<RectTransform>(true))
+            {
+                if (r != root && !Mathf.Approximately(r.anchorMin.x, r.anchorMax.x)) continue; // 부모 따라 늘어나는 건 자동
+                float w = r.rect.width;
+                if (r != root && w < rootWidth * 0.8f) continue;
+                float c = r == root ? 0f : CenterX(r);
+                r.sizeDelta = new Vector2(r.sizeDelta.x - w * (1f - factor), r.sizeDelta.y);
+                if (r != root) SetCenterX(r, c * factor);
+            }
+        }
+
+        // 지도 영역(배경 그림) — HUD 를 그 안 왼쪽 아래에 붙이려고
+        internal static RectTransform MapArea => root != null && root.activeInHierarchy ? (RectTransform)root.transform : null;
+
+        private static string PathFrom(Transform t, Transform root)
+        {
+            if (t == null) return null;
+            if (t == root) return "";
+            var parts = new List<string>();
+            while (t != null && t != root) { parts.Insert(0, t.name); t = t.parent; }
+            return t == root ? string.Join("/", parts) : null;
+        }
+
+        private static Transform Find(Transform root, string path)
+        {
+            if (path == null) return null;
+            return path.Length == 0 ? root : root.Find(path);
         }
 
         // t 의 조상 중 parent 의 바로 아래 자식
@@ -194,7 +311,7 @@ namespace MapExtension
 
         private static Marker CreateMarker(AfterhourLocation loc, Vector2 p, bool locked)
         {
-            float x = p.x * AreaW, y = p.y * AreaH;
+            float x = p.x * AreaW, y = Mathf.Min(p.y, MaxMarkerY) * AreaH;
             RectTransform box = NewRect(root.transform, "Marker_" + loc.Id, x - 110f, y - 18f, 220f, 72f);
             ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
@@ -265,7 +382,7 @@ namespace MapExtension
 
         private static void CreateLockedLabel(string name, string desc, Vector2 p, string icon = null)
         {
-            float x = p.x * AreaW, y = p.y * AreaH;
+            float x = p.x * AreaW, y = Mathf.Min(p.y, MaxMarkerY) * AreaH;
             RectTransform box = NewRect(root.transform, "Locked_" + name, x - 110f, y - 18f, 220f, 72f);
             ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
@@ -288,6 +405,27 @@ namespace MapExtension
             infoMarkers.Add(marker);
         }
 
+        // ---- 분점: 안 산 부지 = 회색, 산 분점 = 금색. 클릭하면 사기 확인 창 ----
+        private static readonly List<Marker> branchMarkers = new List<Marker>();
+        private static readonly Color BranchOwned = new Color32(0xff, 0xd8, 0x4a, 0xff);
+
+        private static Marker CreateBranchMarker(BranchSite b)
+        {
+            float x = b.Pos.x * AreaW, y = Mathf.Min(b.Pos.y, MaxMarkerY) * AreaH;
+            RectTransform box = NewRect(root.transform, "Branch_" + b.Key, x - 110f, y - 18f, 220f, 72f);
+            ScaleMarker(box);
+            var marker = box.gameObject.AddComponent<Marker>();
+            marker.branch = b;
+            marker.location = Branches.LocationOf(b); // 산 분점: 일반 장소처럼 선택/이동
+            var hit = box.gameObject.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0f);
+            marker.inner = NewImage(box, "Inner", 98f, 12f, 24f, 24f, Unavailable);
+            SetIcon(marker.inner, "stock");
+            marker.label = NewText(box, "Label", 0f, 40f, 220f, 30f, 20f, Unavailable, TextAlignmentOptions.Center);
+            ScriptFontSwap.Apply(marker.label, b.Name);
+            return marker;
+        }
+
         // ---- 내 전당포 (가게로 돌아가기) ----
         private static readonly Vector2 HomePosition = new Vector2(0.55f, 0.58f);
         private static readonly Color HomeColor = new Color32(0xff, 0x9f, 0x43, 0xff);
@@ -299,7 +437,7 @@ namespace MapExtension
 
         private static Marker CreateHomeMarker(Vector2 p)
         {
-            float x = p.x * AreaW, y = p.y * AreaH;
+            float x = p.x * AreaW, y = Mathf.Min(p.y, MaxMarkerY) * AreaH;
             RectTransform box = NewRect(root.transform, "Marker_home", x - 110f, y - 18f, 220f, 72f);
             ScaleMarker(box);
             var marker = box.gameObject.AddComponent<Marker>();
@@ -331,16 +469,13 @@ namespace MapExtension
         internal static void AskReturnHome()
         {
             try { EmporiumAudioPlayer.Instance.audioButton2.Play(); } catch { }
-            var dlg = GenericConfirmationUIManager.Instance;
-            if (dlg == null)
+            if (GenericConfirmationUIManager.Instance == null)
             {
                 MapUIManager.Instance?.CloseUI();
                 return;
             }
-            dlg.OpenPanel(HomeAsk, LocHelper.GetLocalizedMainMenu("yes"), LocHelper.GetLocalizedMainMenu("no"), delegate
-            {
-                MapUIManager.Instance?.CloseUI();
-            });
+            Dialogs.Confirm(HomeAsk, LocHelper.GetLocalizedMainMenu("yes"), LocHelper.GetLocalizedMainMenu("no"),
+                () => MapUIManager.Instance?.CloseUI());
         }
 
         // 마우스를 올린 마커 바로 위에 뜨는 툴팁 (위에 자리가 없으면 마커 아래)
@@ -416,6 +551,21 @@ namespace MapExtension
                 m.alert.gameObject.SetActive(hasEvents);
                 if (m.label != null) m.label.color = ok ? Color.white : Unavailable;
             }
+
+            foreach (Marker m in branchMarkers)
+            {
+                if (m == null || m.branch == null) continue;
+                Color c = m.branch.Owned ? (m.location != null && m.location == sel ? Selected : BranchOwned) : Unavailable;
+                if (m.hover && !(m.location != null && m.location == sel)) c = Color.Lerp(c, Color.white, 0.4f);
+                m.inner.color = c;
+                if (m.label != null) m.label.color = m.branch.Owned ? Color.white : Unavailable;
+            }
+            foreach (Marker m in branchMarkers)
+                if (m != null && m.hover && m.branch != null)
+                {
+                    ShowTip(m, m.branch.Name, Branches.Tooltip(m.branch));
+                    return;
+                }
 
             if (home != null)
             {
@@ -527,8 +677,25 @@ namespace MapExtension
             return rt;
         }
 
+        // ---- 구역 표시: 클릭/툴팁 없는 흐린 큰 글자 ----
+        private static readonly (string name, Vector2 pos, Color color)[] Districts =
+        {
+            ("상류층 구역", new Vector2(0.63f, 0.11f), new Color32(0xe8, 0xd2, 0x9a, 0x66)),
+            ("하층민 구역", new Vector2(0.28f, 0.88f), new Color32(0xb8, 0xb8, 0xc4, 0x66)),
+        };
+
+        private static void CreateDistrictLabel(string name, Vector2 p, Color color)
+        {
+            float x = p.x * AreaW, y = p.y * AreaH;
+            var t = NewText(root.transform, "District_" + name, x - 160f, y - 20f, 320f, 40f, 24f, color, TextAlignmentOptions.Center);
+            t.characterSpacing = 18f;
+            t.overflowMode = TextOverflowModes.Overflow;
+            ScriptFontSwap.Apply(t, name);
+        }
+
         // ---- 마커 크기: 아이콘 가운데를 기준으로 줄인다 (위치는 그대로) ----
         private const float MarkerScale = 0.7f;
+        private const float MaxMarkerY = 0.86f; // 지도 아래쪽 버튼/HUD 줄에 마커가 겹치지 않게 (0~1, 위가 0)
 
         private static void ScaleMarker(RectTransform box)
         {
@@ -624,11 +791,17 @@ namespace MapExtension
         public bool locked;
         public bool isHome;
         public bool infoOnly; // 설명 툴팁만 (잠긴 자리)
+        public BranchSite branch; // 분점 부지
         public string tipTitle, tipBody;
 
         public void OnPointerClick(PointerEventData e)
         {
             if (locked || e.button != PointerEventData.InputButton.Left || e.dragging) return;
+            if (branch != null && !branch.Owned)
+            {
+                Branches.Click(branch); // 안 산 부지: 사기
+                return;
+            }
             if (isHome || infoOnly) // 내 전당포 / 잠긴 자리: 설명 툴팁만, 클릭은 아무 동작 없음
             {
                 return;
@@ -659,6 +832,28 @@ namespace MapExtension
         {
             hover = false;
             TransitMap.Refresh();
+        }
+    }
+
+    // 이동 버튼을 이미 줄였다는 표시 (+ 원래 가운데)
+    internal class ResizedMark : MonoBehaviour
+    {
+        public float center;
+    }
+
+    // 복제한 [돌아가기] 버튼: 마우스를 올리면 이동 버튼처럼 노랗게
+    internal class HoverTint : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    {
+        public Image outer;
+        public TMP_Text label;
+
+        public void OnPointerEnter(PointerEventData e) => Set(TransitStyle.BUTTON_BORDER_HOVER);
+        public void OnPointerExit(PointerEventData e) => Set(TransitStyle.BUTTON_BORDER);
+
+        private void Set(Color c)
+        {
+            if (outer != null) outer.color = c;
+            if (label != null) label.color = c;
         }
     }
 

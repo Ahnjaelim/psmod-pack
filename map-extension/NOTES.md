@@ -171,3 +171,41 @@
 - 0.16.1: 폐품 수집 창 복제 팝업 되돌림 (보기 이상함) → 기본 확인 창. StyledDialog 삭제
 - 0.16.2: 미확인 장소 아이콘/라벨 투명도 0.2
 - 0.16.3: 지도 마커(아이콘+라벨) 0.7배 (아이콘 가운데 기준 축소, MarkerScale). 툴팁 위치는 실제 마커 영역 기준
+- 0.16.4: 구역 글자 표시 (상류층 구역 0.63,0.11 / 하층민 구역 0.36,0.93), 흐린 글자, 마커 뒤
+- 0.17.0: 분점 (방치형, Branches.cs). 부지 3곳(하층민 6000/120~250, 시내 15000/300~550, 상류층 40000/800~1300). 지도 icon_stock 클릭 → 확인 → 구매. PlayerStore.BeginDay Postfix 로 매일 수입(ModHelper.AddCredit), last_paid_day 로 중복 방지. DB: branch/<key>="1|번 돈|오늘 수입"
+- 0.18.0: 싸돌아다니기 (Roaming.cs). 장소에서 돌아가기 → 가게 암전 끝나면 지도 자동으로 다시 열림(OnAfterhourLeaveLate). 내 전당포 골라야 가게에 남음. OnArriveStore Postfix 로 visitLeftTonight 유지 → 문으로도 다시 나갈 수 있음
+- 0.18.1: 장소 → 지도 직행. 돌아가기 암전 안(OnAfterhourLeaveLate)에서 TransitUI.Open + OnLeaveStore + 셔터 닫기 (OpenUI 안쪽과 같음) → 가게 화면 안 거침
+- 0.19.0: 외출 중 체력 바 (HealthBar.cs). 체력=(10-woundState)*10, 바닥 창 위 가운데, 모든 장소. 40 이하 (중상), 불안정 표시. 수색처 기력 바는 그 위로
+- 0.20.0: 체력/기력 바 → OutingHud (화면 왼쪽 아래 고정, 오버레이 캔버스 1920x1080 기준). 지도 열림 또는 장소에 있을 때 표시. 수색처 기력 바/HealthBar 제거
+- 0.21.0: 산 분점은 들어갈 수 있음 (BranchLocation : FarmLocation, 임시 배경, 바닥 보관 farm/branch_<key>/floor, 도착 시 수입 알림, 기력 안 채움). 지도: 안 산 부지 클릭=구매, 산 분점=선택/더블클릭 이동
+- 0.21.0: 기력은 하룻밤 한 번만 채움 (ScavHelper.ResetScavenging Prefix, 싸돌아다니기로 무한 충전 방지)
+
+## 나중에 조정 (보류)
+- 기력(수색 횟수, PlayerStore.scavengingAttempts) 밸런스 전반: 최대치, 장소별 비용, 하룻밤 1회 충전 규칙(Roaming.EnergyOncePatch), 세이브 다시 불러오면 재충전되는 점, TestEnergy=100(출시 전 0)
+- 0.22.0: 분점 시뮬레이션. 고정 수입 제거 → 본점 "분점" 버튼(BranchPanel, 왼쪽 아래 오버레이)으로 가상 재고(8x6, branch/<key>/stock)에 넣으면 매일 아침 BranchSim: 위치별 손님 수/종류(10종, 예산+선호 아이템 종류), 감정가×배율로 최대 2종 구매, 로그 최근 7일(branch/<key>/log)
+- 0.22.1: 지도에서 여는 확인 창이 지도 뒤에 숨던 문제 → Dialogs.Confirm (확인 창/어둠 판에 Canvas overrideSorting 으로 지도보다 위). HUD 맨 위 소지금
+- 0.23.0: 확인 창 = 게임 외출 확인 창(MapUIManager.confirmationPanel) 복제 (Dialogs.Confirm): 본문/버튼 글자·동작만 교체, 지도 위 층. 실패 시 기본 확인 창. 수색/분점 구매/전당포 복귀
+- 0.24.0: 지도 [이동] 왼쪽에 [돌아가기] (이동 버튼 복제, 누르면 확인 없이 CloseUI = 가게로)
+- 0.24.1: 확인 창 복제본을 지도가 열려 있으면 지도(TransitUI.Root) 안에 넣음 (다른 캔버스라 정렬값으로는 못 올림) + 자체 어둠 판. 버튼 글자는 버튼 영역 안 글자로 찾기 (오른쪽 No 안 바뀌던 문제)
+- 0.24.2: 지도 버튼 정리: 이동/돌아가기 너비 0.55배, [이동] 왼쪽 [돌아가기] 오른쪽, 묶음 가운데 = 원래 이동 버튼 자리. HUD 는 지도 열려 있으면 지도 그림 영역 안 왼쪽 아래
+- 0.24.3: 마커 y 최대 0.86 (아래 버튼/HUD 줄 피함), 하층민 구역 글자 0.28,0.88
+- 0.25.0: 분점 모니터 (BranchMonitor): 게임 달력 모니터 창(AdvCalendarUIManager.UIPanel) 복제, 탭 3개 = 분점 3곳, 내용 = 요약/[재고 넣기]/최근 기록. [분점] 버튼이 이걸 엶
+- 0.25.1: 분점 모니터 내용을 베이지 종이(창보다 작은 가장 큰 이미지) 안, 탭 아래에 배치. 어두운 글자, 구분선, [재고 넣기] 오른쪽 위
+- 0.26.0: 분점 재고 자동 채우기 (모니터 [자동 채우기]): 본점 invElement 에서 고정/남의 것/용기/기계 제외, 그 분점 손님 선호 점수(BranchSim.Score) 높은 순, 가치 순으로 재고 찰 때까지
+- 0.26.1: 분점 모니터 내용 칸을 창 그림(가장 큰 이미지) 기준 비율(종이 여백 6.5%/9.8%)로. 분점 재고 17x10 (storage_bay_large 와 같음)
+- 0.26.2: 분점 판매가는 원래 이벤트 시세 포함(GetCurrentValue includeEvents). 기록에 "이벤트 +N%" 표시
+- 0.26.3: 분점 판매가에 소매 마진 적용 (GetCurrentValue useRetailMarkup=true, 가게 진열가와 같은 계산)
+- 0.27.0: 분점 손님에 세력 평판(빈도 × clamp(1+평판/200, 0.25~2)) + 본점 매력도(손님 수 × clamp(매력도/400, 0.6~1.8)). 모니터에 손님 구성 %, 기록에 매력도 표시. 자동 채우기 점수도 평판 반영
+- 0.27.1: 밀수품(CONTRABAND_ITEM_TAG/종류 CONTRABAND)은 어느 분점에서도 안 팔림 (재고에 넣을 수는 있음). 자동 채우기도 제외
+- 0.28.0: 분점 매일 자동 채우기 토글 + 종류 필터 8개(식품/물·음료/술·약물/의약품/무기/부품/재료/사치품). 아침 시뮬레이션 전에 AutoFill, 기록에 "아침 자동 채우기: N개". DB branch/<key>/auto = "1|비트"
+- 0.29.0: 분점 자동 채우기 설정 창 (BranchRestockWindow, 게임 호퍼 창과 같은 CustomUI 기계 스타일): 매일 자동 채우기 토글, 필터 3모드(전부/허용 목록만/차단 목록 제외), 이름 검색으로 목록 추가(ItemIndex: 전체 아이템 이름표를 프레임 나눠 1회 생성). 종류 버튼 8개 제거. DB auto = "1|m모드|id,id"
+- 0.29.1: 자동 채우기 목록 추가를 호퍼식으로 (UseSearch=false: [아이템 추가] → 가게 물건 클릭, 우클릭/Esc 끝, ItemPinHelper.BlocksClicks Postfix 로 클릭 막음). 검색 코드는 UseSearch=true 로 되살림
+- 0.29.2: 싸돌아다니기 배낭 유지 (떠날 때 afterhourPocketSlotInvBackpack 의 배낭 기억 → 지도 열 때 selectedBackpack 다시 지정)
+- 0.29.3: 자동 채우기가 본점 인벤토리 안 보관함/상자/냉장고(CONTAINER_TAG, STORAGE) 속까지 찾음. 작업 기계 안, 고정한 용기 안은 제외
+- 0.29.4: 분점 설정 "가격 하락 이벤트 중인 물건은 안 팔기" (EventPercent<0 이면 손님 후보에서 뺌). DB auto 4번째 h0/h1
+- 0.29.5: 고르기 모드 빈 곳 안내 툴팁 제거 (물건 위에서만)
+- 0.30.0: 분점 모니터 끌어서 이동(DragWindow), 설정 창 열어도 모니터 유지(설정 창을 위 층으로 RaiseAbove), 고르기 중엔 모니터 잠깐 숨김, 설정 바꾸면 모니터 요약 갱신
+- 0.30.1: [재고 넣기] 눌러도 모니터 유지, 재고 창을 모니터 위로 (RaiseAbove)
+- 0.30.2: 분점 모니터 뒤 아이템 툴팁/클릭 막기 (모니터 그림에 빈 TreeNodeRender → RenderHandler.RaycastElement 가 거기서 멈추고 null)
+- 0.30.3: 분점 모니터 누르고/끄는 동안 UIDragHandler.isDraggingAnyUI=true (아이템 범위 선택 네모 안 생기게)
+- 0.30.4: [분점] 버튼을 게임 가게 UI 캔버스(달력 창 부모) 맨 뒤로 옮김 → 로딩/메뉴 화면 위로 안 튀어나옴. 1920x1080 기준 크기 → localScale 로 맞춤
