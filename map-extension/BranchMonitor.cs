@@ -502,7 +502,6 @@ namespace MapExtension
 
             status.text = "최근 7일 중 " + (di + 1) + "/" + days.Count + "번째 날 · " + (emptyOnly ? "빈손으로 간 손님만" : "전부") + (b == null ? " · 분점 " + Owned.Count() + "곳 합침" : "");
             float[] cols = { 0f, 0.2f, 0.31f, 0.66f, 0.77f, 1f };
-            HeaderRow(cols, new[] { "손님", ">소지금", "산 것", ">금액", "비고" });
             if (entries.Count == 0) { Para("아직 기록이 없다. 재고를 넣으면 다음 날 아침부터 손님이 온다."); return; }
             Color dim = new Color(Ink.r, Ink.g, Ink.b, 0.55f);
             foreach (var e in entries)
@@ -511,6 +510,7 @@ namespace MapExtension
                 string head = Commas(lines[0]); // 쉼표는 색 태그(#8a2416) 붙이기 전에
                 if (b == null) head = "<color=#8a2416>" + e.site.Replace(" 분점", "") + "</color>  " + head;
                 Para("<b>" + head + "</b>");
+                HeaderRow(cols, new[] { "손님", ">소지금", "산 것", ">금액", "비고" }); // 요약 줄 아래에 표 머리
                 int n = 0, shown = 0;
                 for (int i = 1; i < lines.Length; i++)
                 {

@@ -7,5 +7,6 @@ Source for my personal mods for *Probably Stolen*. Each folder is a separate mod
 | `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` |
 | `map-extension/` | 지도 확장 (`map-extension`) — outing map, scavenging locations | `Mods/MapExtension` |
 | `korean-patch/` | 한국어 패치 (`korean-patch`) — Korean translation (merged from Gangmin(RNIN)'s Korean Translation mod) + Mulmaru font for display roles | `Mods/KoreanPatch` |
+| `ui-enhancer/` | UI 개선 (`ui-enhancer`) — UI improvements (new, empty skeleton) | `Mods/UiEnhancer` |
 
 `korean-patch/Fonts/Mulmaru.*` is © Mushsooni, licensed under the SIL Open Font License 1.1 (`korean-patch/Fonts/OFL.txt`).

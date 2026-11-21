@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod>
+  <ID>ui-enhancer</ID>
+  <Name>UI 개선</Name>
+  <Author>me</Author>
+  <ModVersion>0.10.0</ModVersion>
+  <Description>UI improvements: a panel (img/window.png) slides down from the top while a customer is at the counter.</Description>
+  <Assemblies>
+    <Assembly>UiEnhancer.dll</Assembly>
+  </Assemblies>
+  <Capabilities/>
+</Mod>

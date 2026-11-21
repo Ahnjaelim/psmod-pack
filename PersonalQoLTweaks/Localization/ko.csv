@@ -148,3 +148,5 @@ force_save_blocked_outside,외출 중에는 저장할 수 없습니다
 force_save_blocked_client,손님 응대 중에는 저장할 수 없습니다
 force_save_blocked_night,마감 후 밤에는 저장할 수 없습니다 (자면 저장됨)
 force_save_blocked_gameover,게임 오버 화면에서는 저장할 수 없습니다
+keybind_close_window,창 닫기 (Ctrl + 이 키)
+keybind_close_window_tip,Ctrl을 누른 채 이 키: Esc처럼 가장 최근 창/패널을 닫습니다 (닫을 게 없어도 일시정지 메뉴는 안 엶)

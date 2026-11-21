@@ -13,6 +13,7 @@ on another machine find the Steam install). Each folder is a separate mod:
 | `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` | 2.26.0 |
 | `map-extension/` | 지도 확장 (`map-extension`) | `Mods/MapExtension` | 0.40.3 |
 | `korean-patch/` | 한국어 패치 (`korean-patch`) | `Mods/KoreanPatch` | 0.3.0 |
+| `ui-enhancer/` | UI 개선 (`ui-enhancer`) | `Mods/UiEnhancer` | 0.1.0 (empty skeleton) |
 
 `map-extension/NOTES.md` is the detailed per-version design log (Korean). Read it before touching map-extension.
 
