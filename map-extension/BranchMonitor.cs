@@ -1312,8 +1312,8 @@ namespace MapExtension
     internal class Win98Button : MonoBehaviour, UnityEngine.EventSystems.IPointerDownHandler,
         UnityEngine.EventSystems.IPointerUpHandler, UnityEngine.EventSystems.IPointerExitHandler
     {
-        private static readonly Color Face = new Color32(0xc0, 0xc0, 0xc0, 0xff);
-        private static readonly Color FaceOn = new Color32(0xd4, 0xd0, 0xc8, 0xff);
+        private static readonly Color Face = new Color32(0xa8, 0xae, 0xa5, 0xff);   // 회녹색 (사용자 지정)
+        private static readonly Color FaceOn = new Color32(0xc4, 0xca, 0xc1, 0xff); // 선택된 메뉴: 같은 색 조금 밝게
         private static readonly Color White = new Color32(0xff, 0xff, 0xff, 0xff);
         private static readonly Color Light = new Color32(0xdf, 0xdf, 0xdf, 0xff);
         private static readonly Color Dark = new Color32(0x80, 0x80, 0x80, 0xff);
