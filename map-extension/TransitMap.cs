@@ -751,15 +751,15 @@ namespace MapExtension
                 byte[] bytes = ModHelper.ReadModFileBytes(MapExtensionMod.ModId, "Map/icon_" + key + ".png");
                 if (bytes != null && bytes.Length > 0)
                 {
-                    var tex = new Texture2D(2, 2, TextureFormat.RGBA32, true);
+                    var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false); // 밉맵 없음 (픽셀 그대로)
                     if (tex.LoadImage(bytes))
                     {
                         Color32[] px = tex.GetPixels32();
                         for (int i = 0; i < px.Length; i++) { px[i].r = 255; px[i].g = 255; px[i].b = 255; }
                         tex.SetPixels32(px);
                         tex.wrapMode = TextureWrapMode.Clamp;
-                        tex.filterMode = FilterMode.Bilinear;
-                        tex.Apply(true);
+                        tex.filterMode = FilterMode.Point; // 픽셀 아트: 번지지 않게
+                        tex.Apply(false);
                         tex.name = "icon_" + key;
                         sp = UnityEngine.Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), tex.width);
                     }

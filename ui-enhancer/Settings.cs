@@ -56,7 +56,15 @@ namespace UiEnhancer
         private static readonly Color ScrollbarColor = new Color(Mint.r, Mint.g, Mint.b, 0.3f);                // 목록 스크롤 막대
         private static readonly Color SubHeaderPlateColor = new Color(Mint.r, Mint.g, Mint.b, 0.15f);          // 소제목 줄 판 (도매 할인 제안 등)
         private static readonly Color RowLineColor = new Color(1f, 1f, 1f, 0f);                                // 목록 줄 사이 선
+        private static readonly Color OverBudgetColor = new Color32(0xe0, 0x4a, 0x3c, 0xff);                     // 합계가 손님 예산보다 클 때 합계 숫자
         private static readonly Color ButtonHoverColor = new Color(Mint.r, Mint.g, Mint.b, 0.18f);             // 버튼에 마우스 올렸을 때 바탕
+
+        // ---- 거래창 열 때 효과 (브라운관 켜지듯) ----
+        private const float CrtTime = 0.35f;     // 효과 길이 (초). 0 이면 효과 없음
+        private const float CrtStartAt = 0.8f;   // 윈도우가 이만큼(0~1) 내려왔을 때 시작
+        private const float CrtSplit = 0.4f;     // 앞 40%: 빛줄이 좌우로 펴짐 / 뒤: 위아래로 펴지며 빛이 빠짐
+        private const float CrtLineH = 0.012f;   // 빛줄 두께 (거래창 높이 대비)
+        private static readonly Color CrtFlashColor = new Color(0.85f, 1f, 0.96f, 0.95f); // 빛 색
 
         // ---- 디버그 ----
         private static readonly bool DebugBorder = false; // true 면 빨간 테두리: 거래창 전체, 왼쪽 칸, 오른쪽 칸

@@ -40,6 +40,7 @@ namespace UiEnhancer
                 Undock();
                 docked = prt;
                 dirty = true;
+                crtStart = -1f; crtDone = false; // 새로 열림 → 브라운관 켜지는 효과
                 savedScale = prt.localScale;
                 savedPos = prt.anchoredPosition;
             }
@@ -52,6 +53,7 @@ namespace UiEnhancer
             StyleTablet(f, full);
             LayoutColumns(prt, f, full);
             DrawDebugBorder(prt);
+            try { KeepWindowsAbove(); } catch { }
 
             // 윈도우가 다 내려왔을 때의 회색 칸 (월드 좌표)
             var c = new Vector3[4];
@@ -65,6 +67,7 @@ namespace UiEnhancer
             if (right - left <= 0f || innerH <= 0f) return;
 
             // 배율: 회색 칸 높이 기준 (게임 원래 높이 FitRefH 로 고정 → TabletH 를 바꿔도 글자 크기는 그대로)
+            if (!crtDone && fitScale > 0f) prt.localScale = new Vector3(fitScale, fitScale, 1f); // 효과로 찌그러진 배율은 재기 전에 되돌림
             var pc = new Vector3[4];
             prt.GetWorldCorners(pc);
             float sx = Mathf.Abs(prt.localScale.x) > 1e-5f ? prt.localScale.x : 1f;
@@ -72,13 +75,96 @@ namespace UiEnhancer
             if (unitH <= 0f) return;
             float unitPerLocal = unitH / Mathf.Max(1f, prt.rect.height); // 배율 1일 때 거래창 1단위의 월드 길이
             float scale = innerH / (FitRefH * unitPerLocal) * InnerPad * TabletScale;
-            if (Mathf.Abs(prt.localScale.x - scale) > 1e-4f) prt.localScale = new Vector3(scale, scale, 1f);
+            if (Mathf.Abs(prt.localScale.x - scale) > 1e-4f || Mathf.Abs(prt.localScale.y - scale) > 1e-4f) prt.localScale = new Vector3(scale, scale, 1f);
+            fitScale = scale;
 
             // 자리: 거래창 위쪽 = 윈도우 위쪽 + TabletTopOffset, 좌우 가운데
             Vector3 topCenter = prt.TransformPoint(new Vector3(prt.rect.center.x, prt.rect.yMax, 0f));
             float down = prt.TransformVector(new Vector3(0f, TabletTopOffset, 0f)).y; // 거래창 단위 → 월드
             Vector3 want = new Vector3((left + right) * 0.5f, c[2].y - down, topCenter.z);
             prt.position += want - topCenter;
+            CrtEffect(prt);
+        }
+
+        // ---- 열 때 브라운관 켜지는 효과 (Settings: CrtTime, CrtStartAt, CrtLineH, CrtSplit, CrtFlashColor) ----
+        // 윈도우가 CrtStartAt 만큼 내려오면 시작: 가운데 가는 빛줄이 좌우로 펴지고 → 위아래로 펴지며 빛이 빠진다
+        private float crtStart = -1f, fitScale;
+        private bool crtDone = true;
+        private Image crtFlash;
+
+        private void CrtEffect(RectTransform prt)
+        {
+            if (crtDone) return;
+            if (CrtTime <= 0f || fitScale <= 0f) { EndCrt(prt); return; }
+            if (crtStart < 0f)
+            {
+                if (shown && t < CrtStartAt) { Squash(prt, 0.001f, 0.001f, 0f); return; } // 윈도우 내려오는 동안은 안 보이게
+                crtStart = Time.unscaledTime;
+            }
+            float p = Mathf.Clamp01((Time.unscaledTime - crtStart) / CrtTime);
+            if (p >= 1f) { EndCrt(prt); return; }
+            float ex, ey, flash;
+            if (p < CrtSplit) { ex = Mathf.Lerp(0.02f, 1f, EaseOut(p / CrtSplit)); ey = CrtLineH; flash = 1f; }
+            else { float q = EaseOut((p - CrtSplit) / (1f - CrtSplit)); ex = 1f; ey = Mathf.Lerp(CrtLineH, 1f, q); flash = 1f - q; }
+            Squash(prt, ex, ey, flash);
+        }
+
+        // 거래창 가운데를 기준으로 가로 ex, 세로 ey 배로 찌그러뜨리고, 위에 빛(flash 0~1)을 덮는다
+        private void Squash(RectTransform prt, float ex, float ey, float flash)
+        {
+            Vector3 c0 = prt.TransformPoint(prt.rect.center);
+            prt.localScale = new Vector3(fitScale * ex, fitScale * ey, 1f);
+            prt.position += c0 - prt.TransformPoint(prt.rect.center);
+            if (crtFlash == null || crtFlash.transform.parent != prt)
+            {
+                if (crtFlash != null) Destroy(crtFlash.gameObject);
+                var go = new GameObject("VME_CrtFlash", typeof(RectTransform));
+                var r = (RectTransform)go.transform;
+                r.SetParent(prt, false);
+                r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one;
+                r.offsetMin = r.offsetMax = Vector2.zero;
+                crtFlash = go.AddComponent<Image>();
+                crtFlash.raycastTarget = false;
+            }
+            if (crtFlash.transform.GetSiblingIndex() != prt.childCount - 1) crtFlash.transform.SetAsLastSibling();
+            crtFlash.color = new Color(CrtFlashColor.r, CrtFlashColor.g, CrtFlashColor.b, CrtFlashColor.a * flash);
+        }
+
+        private void EndCrt(RectTransform prt)
+        {
+            crtDone = true;
+            if (crtFlash != null) Destroy(crtFlash.gameObject);
+            crtFlash = null;
+            if (prt != null && fitScale > 0f)
+            {
+                Vector3 c0 = prt.TransformPoint(prt.rect.center);
+                prt.localScale = new Vector3(fitScale, fitScale, 1f);
+                prt.position += c0 - prt.TransformPoint(prt.rect.center);
+            }
+        }
+
+        // 거래창이 열려 있는 동안 보이는 창(인벤/기계 등)은 전부 게임의 "떠 있는 창" 캔버스로 → 항상 거래창/윈도우보다 위
+        private static RectTransform floatingRoot;
+
+        private static void KeepWindowsAbove()
+        {
+            WindowsHandler wh = WindowsHandler.current;
+            if (wh == null || wh.visibleWindows == null) return;
+            foreach (PixelWindow w in wh.visibleWindows)
+            {
+                if (w == null || !w.canMove || w.rectTransform == null) continue;
+                if (floatingRoot != null && w.rectTransform.parent == floatingRoot) continue;
+                if (floatingRoot == null)
+                {
+                    Traverse.Create(typeof(UIFamilyLayer)).Method("EnsureCanvas").GetValue();
+                    floatingRoot = Traverse.Create(typeof(UIFamilyLayer)).Field("floatingRoot").GetValue() as RectTransform;
+                    if (floatingRoot == null) return;
+                    if (w.rectTransform.parent == floatingRoot) continue;
+                }
+                Transform dock = LetterboxManager.DockRoot;
+                if (dock != null && w.rectTransform.parent == dock) continue; // 게임도 옆에 붙인 창은 안 옮긴다
+                Traverse.Create(typeof(UIFamilyLayer)).Method("Adopt", new[] { typeof(RectTransform) }).GetValue(w.rectTransform);
+            }
         }
 
         // 거래창 태블릿 배경 그림(베이지 판 + 금속 모서리)을 숨긴다. 내용(글자/칸/버튼)은 그대로
@@ -149,6 +235,9 @@ namespace UiEnhancer
         {
             if (debugBorder != null) Destroy(debugBorder);
             debugBorder = null;
+            if (crtFlash != null) Destroy(crtFlash.gameObject);
+            crtFlash = null;
+            crtDone = true;
             Unstyle();
             if (hiddenArt != null) hiddenArt.enabled = true;
             hiddenArt = null;

@@ -14,6 +14,24 @@ namespace UiEnhancer
     // 게임이 거래창 내용(목록, 관심사 등)을 새로 만들 때 부르는 함수.
     //  - 모드에 "내용이 바뀌었다" 고 알린다 → 이번 프레임에 거래창 전체를 다시 꾸민다 (평소엔 가끔만, 무거워서)
     //  - 관심사 줄: 옛 부품은 Destroy 해도 프레임 끝에야 지워져 옛/새가 한 프레임 같이 배치된다 → 바로 꺼 둔다 (꺼진 건 배치에서 건너뜀)
+    // 거래창을 누르거나 열 때 게임은 떠 있는 창(인벤/기계)을 전부 거래창 아래로 내린다(UIFamilyLayer.BringPanelsToFront)
+    //  → 거래창일 때만 그걸 건너뛴다. 순서 도장(Esc 로 닫을 순서)은 그대로 찍는다
+    [HarmonyLib.HarmonyPatch(typeof(PaperPanelFocusStamp), nameof(PaperPanelFocusStamp.Bump))]
+    internal static class TabletBumpPatch
+    {
+        private static bool Prefix(PaperPanelFocusStamp __instance)
+        {
+            try
+            {
+                GameObject ui = NegociationUIManager.Instance != null ? NegociationUIManager.Instance.uiObject : null;
+                if (ui == null || __instance.gameObject != ui) return true;
+                __instance.stamp = PixelWindow.NextFocusStamp();
+                return false;
+            }
+            catch { return true; }
+        }
+    }
+
     [HarmonyLib.HarmonyPatch(typeof(TabletUI), nameof(TabletUI.ClearChildren))]
     internal static class ClearChildrenPatch
     {

@@ -434,16 +434,16 @@ namespace MapExtension
 
         internal static readonly Dictionary<string, VisitorType> Types = new Dictionary<string, VisitorType>
         {
-            { "worker",   new VisitorType { Name = "하층민 노동자", BudgetMin = 20,  BudgetMax = 120,  Likes = new[] { "FOOD", "PROCESSED_FOOD", "WATER", "WATER_RATION", "MEDICAL", "SUBSTANCE", "ALCOHOL" }, Faction = "FACTION_LOWER_LEVEL" } },
-            { "family",   new VisitorType { Name = "하층민 가족",   BudgetMin = 30,  BudgetMax = 160,  Likes = new[] { "FOOD", "FRESH_FOOD", "PROCESSED_FOOD", "WATER", "MEDICAL", "TREAT" }, Faction = "FACTION_LOWER_LEVEL" } },
-            { "rebel",    new VisitorType { Name = "혁명군 청년",   BudgetMin = 50,  BudgetMax = 300,  Likes = new[] { "WEAPON", "AMMUNITION", "MUNITION", "MEDICAL", "TOOL" }, Faction = "FACTION_REVOLUTION" } },
-            { "broker",   new VisitorType { Name = "암시장 중개인", BudgetMin = 100, BudgetMax = 600,  Likes = new[] { "NARCOTIC", "WEAPON", "FIREARM", "MODULE", "ORGAN" }, Faction = "FACTION_BLACK_MARKET" } },
-            { "believer", new VisitorType { Name = "교회 신자",     BudgetMin = 40,  BudgetMax = 300,  Likes = new[] { "FOOD", "WATER", "MEDICAL", "ART" }, Faction = "FACTION_CHURCH" } },
-            { "tourist",  new VisitorType { Name = "관광객",        BudgetMin = 60,  BudgetMax = 450,  Likes = new[] { "LUXURY_ITEM", "ART", "TREAT", "BREVAGE", "ALCOHOL" }, Faction = "FACTION_TOURIST" } },
-            { "security", new VisitorType { Name = "보안대원",      BudgetMin = 80,  BudgetMax = 400,  Likes = new[] { "WEAPON", "FIREARM", "AMMUNITION", "ARMOR", "MEDICAL" }, Faction = "FACTION_SECURITY" } },
+            { "worker",   new VisitorType { Name = "하층민 노동자", BudgetMin = 20,  BudgetMax = 120,  Likes = new[] { "FOOD", "PROCESSED_FOOD", "WATER", "WATER_RATION", "MEDICAL", "SUBSTANCE", "ALCOHOL", "HOUSEHOLD_GOOD" }, Faction = "FACTION_LOWER_LEVEL" } },
+            { "family",   new VisitorType { Name = "하층민 가족",   BudgetMin = 30,  BudgetMax = 160,  Likes = new[] { "FOOD", "FRESH_FOOD", "PROCESSED_FOOD", "WATER", "MEDICAL", "TREAT", "HOUSEHOLD_GOOD" }, Faction = "FACTION_LOWER_LEVEL" } },
+            { "rebel",    new VisitorType { Name = "혁명군 청년",   BudgetMin = 50,  BudgetMax = 300,  Likes = new[] { "WEAPON", "AMMUNITION", "MUNITION", "MEDICAL", "TOOL", "ALCOHOL", "SUBSTANCE" }, Faction = "FACTION_REVOLUTION" } },
+            { "broker",   new VisitorType { Name = "암시장 중개인", BudgetMin = 100, BudgetMax = 600,  Likes = new[] { "NARCOTIC", "WEAPON", "FIREARM", "MODULE", "ORGAN", "SUBSTANCE" }, Faction = "FACTION_BLACK_MARKET" } },
+            { "believer", new VisitorType { Name = "교회 신자",     BudgetMin = 40,  BudgetMax = 300,  Likes = new[] { "FOOD", "WATER", "MEDICAL", "ART", "HOUSEHOLD_GOOD" }, Faction = "FACTION_CHURCH" } },
+            { "tourist",  new VisitorType { Name = "관광객",        BudgetMin = 60,  BudgetMax = 450,  Likes = new[] { "LUXURY_ITEM", "ART", "TREAT", "BREVAGE", "ALCOHOL", "HOUSEHOLD_GOOD" }, Faction = "FACTION_TOURIST" } },
+            { "security", new VisitorType { Name = "보안대원",      BudgetMin = 80,  BudgetMax = 400,  Likes = new[] { "WEAPON", "FIREARM", "AMMUNITION", "ARMOR", "MEDICAL", "ALCOHOL", "SUBSTANCE" }, Faction = "FACTION_SECURITY" } },
             { "tech",     new VisitorType { Name = "기술자",        BudgetMin = 80,  BudgetMax = 500,  Likes = new[] { "TOOL", "MATERIAL", "BASIC_MATERIAL", "REFINED_MATERIAL", "MODULE", "ENERGY_CELL", "MACHINE" }, Faction = "FACTION_LOWER_LEVEL" } },
             { "noble",    new VisitorType { Name = "상류층 손님",   BudgetMin = 300, BudgetMax = 2500, Likes = new[] { "LUXURY_ITEM", "ART", "ALCOHOL", "TREAT", "FRESH_FOOD" }, Faction = "FACTION_UPPER_LEVEL" } },
-            { "cartel",   new VisitorType { Name = "카르텔 간부",   BudgetMin = 400, BudgetMax = 3000, Likes = new[] { "WEAPON", "FIREARM", "NARCOTIC", "LUXURY_ITEM", "ARMOR" }, Faction = "FACTION_CARTEL" } },
+            { "cartel",   new VisitorType { Name = "카르텔 간부",   BudgetMin = 400, BudgetMax = 3000, Likes = new[] { "WEAPON", "FIREARM", "NARCOTIC", "LUXURY_ITEM", "ARMOR", "ALCOHOL", "SUBSTANCE" }, Faction = "FACTION_CARTEL" } },
         };
 
         // 하루치: 손님이 와서 재고를 사 간다. 매출을 돌려준다.

@@ -208,12 +208,28 @@ namespace MapExtension
             colors.highlightedColor = new Color(1.25f, 1.2f, 1.1f, 1f);
             colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
             b.colors = colors;
-            b.onClick.AddListener(() =>
+            // 게임 인벤토리 상자처럼 더블클릭으로 열고 닫는다 (Button 은 마우스 올림/누름 색만)
+            go.AddComponent<DoubleClick>().OnDouble = () =>
             {
                 try { click(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] branch panel: " + ex.Message); }
-            });
+            };
             go.SetActive(false);
             return go;
+        }
+
+        // 더블클릭 감지 (게임과 같은 0.5초 안 두 번)
+        private class DoubleClick : MonoBehaviour, IPointerClickHandler
+        {
+            public Action OnDouble;
+            private float last = -10f;
+
+            public void OnPointerClick(PointerEventData e)
+            {
+                if (e.button != PointerEventData.InputButton.Left) return;
+                float now = Time.unscaledTime;
+                if (now - last <= 0.5f) { last = -10f; OnDouble?.Invoke(); }
+                else last = now;
+            }
         }
 
         private static Sprite BoxSprite()

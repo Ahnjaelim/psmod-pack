@@ -3,7 +3,7 @@
   <ID>map-extension</ID>
   <Name>지도 확장</Name>
   <Author>me</Author>
-  <ModVersion>0.40.4</ModVersion>
+  <ModVersion>0.43.3</ModVersion>
   <Description>Replaces the after-hours outing card list with a city map. Click a location marker to select it, double-click to travel.</Description>
   <Assemblies>
     <Assembly>MapExtension.dll</Assembly>

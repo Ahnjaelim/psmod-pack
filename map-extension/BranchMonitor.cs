@@ -521,7 +521,7 @@ namespace MapExtension
                     shown++;
                     if (l.Info) { Cell(row, cols[0], cols[5], "<i>" + l.Who + "</i>", dim); continue; }
                     Color c = l.Bought ? Ink : dim;
-                    Cell(row, cols[0], cols[1], l.Who, c);
+                    LikesTip(Cell(row, cols[0], cols[1], l.Who, c), l.Who);
                     NumCell(row, cols[1], cols[2], l.Wallet >= 0 ? N(l.Wallet) + " ₵" : "–", c);
                     if (l.Bought && l.Parts.Count > 0) ItemsCell(row, cols[2], cols[3], l, c);
                     else Cell(row, cols[2], cols[3], l.Bought ? l.Items : "둘러보고 그냥 감", c);
@@ -872,7 +872,7 @@ namespace MapExtension
         private static readonly Dictionary<string, string> TypeNames = new Dictionary<string, string>
         {
             { "FOOD", "음식" }, { "FRESH_FOOD", "신선식품" }, { "PROCESSED_FOOD", "가공식품" }, { "WATER", "물" }, { "WATER_RATION", "배급수" },
-            { "MEDICAL", "의약품" }, { "SUBSTANCE", "약물" }, { "ALCOHOL", "술" }, { "TREAT", "간식" }, { "BREVAGE", "음료" },
+            { "MEDICAL", "의약품" }, { "SUBSTANCE", "약물" }, { "ALCOHOL", "술" }, { "HOUSEHOLD_GOOD", "생활용품" }, { "TREAT", "간식" }, { "BREVAGE", "음료" },
             { "WEAPON", "무기" }, { "FIREARM", "총기" }, { "AMMUNITION", "탄약" }, { "MUNITION", "군수품" }, { "ARMOR", "방어구" },
             { "TOOL", "도구" }, { "MATERIAL", "재료" }, { "BASIC_MATERIAL", "기초 재료" }, { "REFINED_MATERIAL", "정제 재료" },
             { "MODULE", "모듈" }, { "ENERGY_CELL", "에너지 셀" }, { "MACHINE", "기계" }, { "NARCOTIC", "마약" }, { "ORGAN", "장기" },
@@ -988,6 +988,15 @@ namespace MapExtension
 
         // 기록 글 속 네 자리 이상 숫자에 쉼표
         private static string Commas(string text) => Regex.Replace(text, @"\d{4,}", m => N(long.Parse(m.Value)));
+
+        // 손님 이름 칸에 마우스 올리면 그 손님이 좋아하는 물건 (판매 기록)
+        private static void LikesTip(TextMeshProUGUI cell, string who)
+        {
+            BranchSim.VisitorType t = BranchSim.Types.Values.FirstOrDefault(v => v.Name == who);
+            if (cell == null || t == null) return;
+            cell.raycastTarget = true;
+            cell.gameObject.AddComponent<HoverName>().Text = "좋아하는 것: " + string.Join(", ", t.Likes.Select(TypeKo).Distinct());
+        }
 
         private static TextMeshProUGUI Cell(RectTransform row, float x0, float x1, string text, Color? color = null,
                                             float y0 = 0f, float y1 = 1f, TextAlignmentOptions align = TextAlignmentOptions.MidlineLeft)
@@ -1456,22 +1465,59 @@ namespace MapExtension
             tip = (RectTransform)go.transform;
             tip.anchorMin = tip.anchorMax = new Vector2(0.5f, 0.5f);
             tip.pivot = new Vector2(0f, 0f);
+            // 모양은 게임 툴팁(TooltipManager: 남색 판 + 주황 테두리)에서 그대로 빌려 온다. 못 찾으면 비슷한 색으로 직접
+            TooltipManager gm = TooltipManager._instance;
+            GameObject srcGo = gm != null ? gm.tooltipGameobject : null;
+            Image src = srcGo != null ? (srcGo.GetComponent<Image>() ?? srcGo.GetComponentInChildren<Image>(true)) : null;
+            TextMeshProUGUI srcText = gm != null ? gm.content : null;
+            float mine = Mathf.Abs(tip.lossyScale.x) > 1e-6f ? Mathf.Abs(tip.lossyScale.x) : 1f;
+            float theirs = src != null && Mathf.Abs(src.transform.lossyScale.x) > 1e-6f ? Mathf.Abs(src.transform.lossyScale.x) : mine;
+            float k = theirs / mine; // 게임 툴팁 1단위 = 여기 k단위 (화면에서 같은 크기로)
             var bg = go.AddComponent<Image>();
-            bg.color = new Color32(0x1f, 0x1a, 0x24, 0xee);
             bg.raycastTarget = false;
+            if (src != null && src.sprite != null)
+            {
+                bg.sprite = src.sprite;
+                bg.type = src.type;
+                bg.color = src.color;
+                bg.pixelsPerUnitMultiplier = src.pixelsPerUnitMultiplier / Mathf.Max(0.01f, k);
+            }
+            else
+            {
+                // 그림이 없으면 색 판 + 테두리 (테두리 색은 게임 툴팁 안의 다른 판에서, 없으면 주황)
+                bg.color = src != null ? src.color : new Color32(0x24, 0x20, 0x38, 0xf5);
+                Color edge = new Color32(0xb4, 0x55, 0x3a, 0xff);
+                if (srcGo != null)
+                    foreach (Image other in srcGo.GetComponentsInChildren<Image>(true))
+                        if (other != src && other.color != src.color && other.color.a > 0.5f) { edge = other.color; break; }
+                var ol = go.AddComponent<Outline>();
+                ol.effectColor = edge;
+                ol.effectDistance = new Vector2(3f * k, -3f * k);
+            }
             var fit = go.AddComponent<ContentSizeFitter>();
             fit.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var hl = go.AddComponent<HorizontalLayoutGroup>();
-            hl.padding = new RectOffset(8, 8, 4, 4);
+            int px = Mathf.RoundToInt(14f * k), py = Mathf.RoundToInt(9f * k);
+            hl.padding = new RectOffset(px, px, py, py);
             hl.childControlWidth = hl.childControlHeight = true;
             var tgo = new GameObject("Text", typeof(RectTransform));
             tgo.transform.SetParent(tip, false);
             tipText = tgo.AddComponent<TextMeshProUGUI>();
-            TMP_Text style = GetComponentInParent<Canvas>()?.GetComponentInChildren<TMP_Text>(true);
-            if (style != null) tipText.font = style.font;
-            tipText.fontSize = 16f;
-            tipText.color = new Color32(0xf2, 0xee, 0xe6, 0xff);
+            if (srcText != null)
+            {
+                tipText.font = srcText.font;
+                tipText.fontSharedMaterial = srcText.fontSharedMaterial;
+                tipText.fontSize = srcText.fontSize * k;
+                tipText.color = srcText.color;
+            }
+            else
+            {
+                TMP_Text style = GetComponentInParent<Canvas>()?.GetComponentInChildren<TMP_Text>(true);
+                if (style != null) tipText.font = style.font;
+                tipText.fontSize = 18f;
+                tipText.color = new Color32(0xec, 0xe8, 0xf2, 0xff);
+            }
             tipText.enableWordWrapping = false;
             tipText.raycastTarget = false;
             // 자기 Canvas 로 맨 위에 (분점 버튼처럼 가게 물건 뒤 층에 있어도 툴팁은 가려지지 않게. 클릭은 안 받음)

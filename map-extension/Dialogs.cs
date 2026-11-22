@@ -13,6 +13,9 @@ namespace MapExtension
     internal static class Dialogs
     {
         private static GameObject current;
+        private static readonly List<GameObject> layers = new List<GameObject>(); // 혹시 여러 개 떠도 Close 가 전부 지운다
+
+        internal static bool IsOpen => current != null;
         private static bool dumped;
 
         internal static void Confirm(string body, string ok, string cancel, Action onOk, Action onCancel = null)
@@ -62,8 +65,11 @@ namespace MapExtension
 
         internal static void Close()
         {
+            if (current != null || layers.Count > 0) Probe.After(0.3f);
             if (current != null) UnityEngine.Object.Destroy(current);
             current = null;
+            foreach (GameObject l in layers) if (l != null) UnityEngine.Object.Destroy(l);
+            layers.Clear();
             try { GenericConfirmationUIManager.Instance?.confirmationDarkness?.SetActive(false); } catch { }
         }
 
@@ -146,9 +152,27 @@ namespace MapExtension
 
             SetText(bodyText, body ?? "");
             Button okB = buttons[0], noB = buttons[buttons.Count - 1];
-            Wire(okB, labelOf.TryGetValue(okB, out TMP_Text okT) ? okT : null, ok, () => { Close(); onOk?.Invoke(); });
+            Debug.Log("[MapExtension] dialog open: buttons " + buttons.Count + ", host " + host.name + (onMap ? " (map)" : ""));
+            Wire(okB, labelOf.TryGetValue(okB, out TMP_Text okT) ? okT : null, ok, () => { Debug.Log("[MapExtension] dialog ok"); Close(); onOk?.Invoke(); });
             if (string.IsNullOrEmpty(cancel)) noB.gameObject.SetActive(false);
-            else Wire(noB, labelOf.TryGetValue(noB, out TMP_Text noT) ? noT : null, cancel, () => { Close(); onCancel?.Invoke(); });
+            else Wire(noB, labelOf.TryGetValue(noB, out TMP_Text noT) ? noT : null, cancel, () => { Debug.Log("[MapExtension] dialog cancel"); Close(); onCancel?.Invoke(); });
+
+            // 버튼이 3개 이상인 창(닫기 X 등): 나머지 버튼에 남은 원래 동작(복제본 창만 숨기기 → 어두운 판만 남아 화면이 막힘)을 지우고 "취소"로.
+            // 글자는 안 바꾼다 (X 같은 것이 "취소"로 바뀌지 않게)
+            for (int bi = 1; bi < buttons.Count - 1; bi++)
+            {
+                Button extra = buttons[bi];
+                Debug.Log("[MapExtension] dialog extra button: " + extra.name + " → cancel");
+                extra.onClick = new Button.ButtonClickedEvent();
+                extra.onClick.AddListener(() =>
+                {
+                    Debug.Log("[MapExtension] dialog cancel (extra button)");
+                    try { EmporiumAudioPlayer.Instance.audioButton1.Play(); } catch { }
+                    Close();
+                    onCancel?.Invoke();
+                });
+                extra.interactable = true;
+            }
 
             if (!onMap)
             {
@@ -157,6 +181,7 @@ namespace MapExtension
                 Lift(layer, sl, order + 21);
             }
             current = layer;
+            layers.Add(layer);
             return true;
         }
 
@@ -238,6 +263,54 @@ namespace MapExtension
         }
 
         private static float X(Transform t) => t.position.x;
+
+        // 진단: 창을 닫고 나서도 화면을 덮고 클릭을 막는 판이 남았나 → 로그 (VME_ 판이면 지움)
+        private class Probe : MonoBehaviour
+        {
+            private float at;
+            private static Probe inst;
+
+            internal static void After(float sec)
+            {
+                if (inst == null)
+                {
+                    var go = new GameObject("VME_DialogProbe");
+                    UnityEngine.Object.DontDestroyOnLoad(go);
+                    inst = go.AddComponent<Probe>();
+                }
+                inst.at = Time.unscaledTime + sec;
+                inst.enabled = true;
+            }
+
+            private void Update()
+            {
+                if (Time.unscaledTime < at) return;
+                enabled = false;
+                try { Scan(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] probe: " + ex.Message); }
+            }
+
+            private static void Scan()
+            {
+                float sw = Screen.width, sh = Screen.height;
+                int n = 0;
+                foreach (Graphic g in UnityEngine.Object.FindObjectsOfType<Graphic>())
+                {
+                    if (!g.isActiveAndEnabled || !g.raycastTarget || g.color.a < 0.2f) continue;
+                    var c = new Vector3[4];
+                    g.rectTransform.GetWorldCorners(c);
+                    Canvas cv = g.canvas;
+                    Camera cam = cv != null && cv.renderMode != RenderMode.ScreenSpaceOverlay ? cv.worldCamera : null;
+                    Vector2 a = RectTransformUtility.WorldToScreenPoint(cam, c[0]), z = RectTransformUtility.WorldToScreenPoint(cam, c[2]);
+                    if (a.x > sw * 0.1f || a.y > sh * 0.1f || z.x < sw * 0.9f || z.y < sh * 0.9f) continue; // 화면 거의 전체를 덮는 것만
+                    string path = g.name;
+                    for (Transform t = g.transform.parent; t != null; t = t.parent) path = t.name + "/" + path;
+                    Debug.Log("[MapExtension] probe: full-screen blocker " + path + " color " + g.color + " canvas " + (cv != null ? cv.rootCanvas.name + "#" + cv.sortingOrder : "-"));
+                    n++;
+                    if (path.Contains("VME_ConfirmLayer") || path.Contains("VME_Confirm")) { Transform r = g.transform; while (r.parent != null && !r.name.StartsWith("VME_ConfirmLayer")) r = r.parent; UnityEngine.Object.Destroy(r.gameObject); Debug.Log("[MapExtension] probe: removed leftover dialog layer"); }
+                }
+                Debug.Log("[MapExtension] probe: " + n + " full-screen blocker(s) after dialog close");
+            }
+        }
 
         private static string Dump(Transform t, string ind)
         {

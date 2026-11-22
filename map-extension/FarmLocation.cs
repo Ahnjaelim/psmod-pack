@@ -68,7 +68,7 @@ namespace MapExtension
         internal static bool IsUnlocked(string key) => FarmLocationData.StartOpen.Contains(key) || ModHelper.GetAfterhourCounter("vme_farm_" + key, "unlocked", 0) == 1;
 
         // 망원경 말고 뒤질 곳을 전부 한 번 이상 뒤졌나
-        internal bool AllCleared()
+        internal virtual bool AllCleared()
         {
             foreach (FarmSpot s in Spots)
                 if (!s.Telescope && ModHelper.GetAfterhourCounter(Id, "searched_" + s.Key, -1000) <= -1000) return false;
@@ -177,7 +177,14 @@ namespace MapExtension
                 go.AddComponent<TooltipContainer>();
                 hs.Refresh();
             }
+            BuildExtra(stage, imgW, imgH, px);
         }
+
+        // 하위 장소(격자 수색 GridFarmLocation 등)가 무대에 더 깔 것. imgW/imgH = 배경 그림의 월드 크기, px = 1080 기준 1px 의 월드 길이
+        protected virtual void BuildExtra(GameObject stage, float imgW, float imgH, float px) { }
+
+        // 하위 장소가 UI 층(이름표 층, 모든 창 뒤)에 더 그릴 것. toLocal = 월드 좌표 → 이 층 로컬 좌표 (실패 null)
+        protected virtual void BuildOverlay(RectTransform layer, Func<Vector3, Vector2?> toLocal) { }
 
         private const float IconSize = 30f; // 1080 기준 px
 
@@ -296,6 +303,7 @@ namespace MapExtension
                 h.label = label;
                 h.Refresh();
             }
+            BuildOverlay(lrt, w => ToLocal(w, out Vector2 l) ? (Vector2?)l : null);
         }
 
         // ---- 바닥에 둔 물건: 이 장소에 그대로 남긴다 ----
@@ -783,7 +791,10 @@ namespace MapExtension
             return ItemSpawner.SpawnFromTable(RNG.Roll(75f) ? "junkTable" : "householdTable");
         }
 
-        private GameItem RollOne()
+        private GameItem RollOne() => RollSpot(spot);
+
+        // 그 수색 지점 정의대로 한 개 굴리기 (격자 수색 칸도 같이 씀)
+        internal static GameItem RollSpot(FarmSpot spot)
         {
             bool hasTables = spot.Tables != null && spot.Tables.Length > 0;
             if (spot.Items != null && spot.Items.Length > 0 && (!hasTables || RNG.Roll(spot.ItemChance)))
@@ -822,28 +833,30 @@ namespace MapExtension
     {
         internal static readonly List<FarmLocation> All = new List<FarmLocation>
         {
-            new FarmLocation
-            {
-                Key = "pharmacy", Name = "버려진 약국", BackgroundFile = "bg_farm_pharmacy.png",
-                Desc = "셔터가 반쯤 뜯겨 나간 동네 약국. 쓸 만한 건 다 털렸다고들 하지만, 정말 그럴까.",
-                Spots = new List<FarmSpot>
-                {
-                    new FarmSpot { Key = "cabinet", Name = "약장", Area = new Rect(0.18f, 0.60f, 0f, 0f), Cost = 2,
-                        Desc = "유리문이 깨진 약장. 선반 안쪽에 뭔가 남아 있을지도.", Tables = new[] { "medicalTable" }, MinItems = 1, MaxItems = 3, MinorWound = 3f, Empty = 15f,
-                        Items = new[] { "bandage_item:30", "topical_bandage_item:20", "hemostatic_bandage_item:10", "rubbing_alcohol:20", "salve:12", "smelling_salt:8", "phagimycin_pill:6", "pink_injector:3" }, ItemChance = 75f },
-                    new FarmSpot { Key = "counter", Name = "조제실 카운터", Area = new Rect(0.53f, 0.57f, 0f, 0f), Cost = 1,
-                        Desc = "안쪽 조제실 카운터. 서랍이 반쯤 열려 있다.", Tables = new[] { "householdTable", "junkTable" }, MinItems = 1, MaxItems = 2, Empty = 25f,
-                        Items = new[] { "caffeine_pill:25", "phagimycin_pill:15", "unlicensed_phagimycin_pill:8", "birth_control_pill:12", "bandage_item:15", "chem_scanner:2", "surgery_tool:3" }, ItemChance = 55f },
-                    new FarmSpot { Key = "shelf", Name = "벽면 선반", Area = new Rect(0.78f, 0.66f, 0f, 0f), Cost = 2,
-                        Desc = "천장까지 닿는 벽면 선반. 위쪽 칸은 기울어져 있어 잘못 건드리면 쏟아질 것 같다.", Tables = new[] { "packedFoodTable", "materialTable", "medicalTable" }, MinItems = 1, MaxItems = 3, MinorWound = 10f, MajorWound = 2f, Empty = 15f,
-                        Items = new[] { "bandage_item:20", "topical_bandage_item:15", "rubbing_alcohol:20", "salve:10", "blood_bag:4" }, ItemChance = 40f },
-                    new FarmSpot { Key = "trash", Name = "진열대", Area = new Rect(0.38f, 0.50f, 0f, 0f), Cost = 1,
-                        Desc = "가운데 진열대. 남은 건 대부분 빈 상자지만 가끔 뭔가 굴러다닌다.", Tables = new[] { "junkTable" }, MinorWound = 2f, Empty = 30f, RefillDays = 1 },
-                    new FarmSpot { Key = "safe", Name = "지하실 문", Area = new Rect(0.33f, 0.72f, 0f, 0f), Cost = 3,
-                        Desc = "지하실 표지판 아래 잠긴 문. 약사가 귀한 물건을 숨겨 뒀다는 소문이 있다.", Tables = new[] { "medicalTable", "toolTable", "allModuleTable" }, MinItems = 2, MaxItems = 3, MinorWound = 3f, Empty = 5f,
-                        NeedsAny = new[] { "med_keycard", "cmd_keycard" }, ConsumesTool = true, NeedsText = "의무부 키카드 잠금장치다. 의무부 키카드(또는 사령부 키카드)가 외출 가방에 있어야 한다.", RefillDays = 7 },
-                },
-            },
+            // 예전 약국 (클릭 수색). 격자 수색 테스트 동안 주석 처리 → GridFarmData.Pharmacy() 로 교체
+            // new FarmLocation
+            // {
+            //     Key = "pharmacy", Name = "버려진 약국", BackgroundFile = "bg_farm_pharmacy.png",
+            //     Desc = "셔터가 반쯤 뜯겨 나간 동네 약국. 쓸 만한 건 다 털렸다고들 하지만, 정말 그럴까.",
+            //     Spots = new List<FarmSpot>
+            //     {
+            //         new FarmSpot { Key = "cabinet", Name = "약장", Area = new Rect(0.18f, 0.60f, 0f, 0f), Cost = 2,
+            //             Desc = "유리문이 깨진 약장. 선반 안쪽에 뭔가 남아 있을지도.", Tables = new[] { "medicalTable" }, MinItems = 1, MaxItems = 3, MinorWound = 3f, Empty = 15f,
+            //             Items = new[] { "bandage_item:30", "topical_bandage_item:20", "hemostatic_bandage_item:10", "rubbing_alcohol:20", "salve:12", "smelling_salt:8", "phagimycin_pill:6", "pink_injector:3" }, ItemChance = 75f },
+            //         new FarmSpot { Key = "counter", Name = "조제실 카운터", Area = new Rect(0.53f, 0.57f, 0f, 0f), Cost = 1,
+            //             Desc = "안쪽 조제실 카운터. 서랍이 반쯤 열려 있다.", Tables = new[] { "householdTable", "junkTable" }, MinItems = 1, MaxItems = 2, Empty = 25f,
+            //             Items = new[] { "caffeine_pill:25", "phagimycin_pill:15", "unlicensed_phagimycin_pill:8", "birth_control_pill:12", "bandage_item:15", "chem_scanner:2", "surgery_tool:3" }, ItemChance = 55f },
+            //         new FarmSpot { Key = "shelf", Name = "벽면 선반", Area = new Rect(0.78f, 0.66f, 0f, 0f), Cost = 2,
+            //             Desc = "천장까지 닿는 벽면 선반. 위쪽 칸은 기울어져 있어 잘못 건드리면 쏟아질 것 같다.", Tables = new[] { "packedFoodTable", "materialTable", "medicalTable" }, MinItems = 1, MaxItems = 3, MinorWound = 10f, MajorWound = 2f, Empty = 15f,
+            //             Items = new[] { "bandage_item:20", "topical_bandage_item:15", "rubbing_alcohol:20", "salve:10", "blood_bag:4" }, ItemChance = 40f },
+            //         new FarmSpot { Key = "trash", Name = "진열대", Area = new Rect(0.38f, 0.50f, 0f, 0f), Cost = 1,
+            //             Desc = "가운데 진열대. 남은 건 대부분 빈 상자지만 가끔 뭔가 굴러다닌다.", Tables = new[] { "junkTable" }, MinorWound = 2f, Empty = 30f, RefillDays = 1 },
+            //         new FarmSpot { Key = "safe", Name = "지하실 문", Area = new Rect(0.33f, 0.72f, 0f, 0f), Cost = 3,
+            //             Desc = "지하실 표지판 아래 잠긴 문. 약사가 귀한 물건을 숨겨 뒀다는 소문이 있다.", Tables = new[] { "medicalTable", "toolTable", "allModuleTable" }, MinItems = 2, MaxItems = 3, MinorWound = 3f, Empty = 5f,
+            //             NeedsAny = new[] { "med_keycard", "cmd_keycard" }, ConsumesTool = true, NeedsText = "의무부 키카드 잠금장치다. 의무부 키카드(또는 사령부 키카드)가 외출 가방에 있어야 한다.", RefillDays = 7 },
+            //     },
+            // },
+            GridFarmData.Pharmacy(),
         };
 
         private static bool dataAdded;

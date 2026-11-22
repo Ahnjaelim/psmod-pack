@@ -3,7 +3,7 @@
   <ID>ui-enhancer</ID>
   <Name>UI 개선</Name>
   <Author>me</Author>
-  <ModVersion>0.10.17</ModVersion>
+  <ModVersion>0.10.21</ModVersion>
   <Description>UI improvements: a panel (img/window.png) slides down from the top while a customer is at the counter.</Description>
   <Assemblies>
     <Assembly>UiEnhancer.dll</Assembly>

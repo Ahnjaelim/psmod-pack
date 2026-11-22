@@ -65,7 +65,7 @@ namespace UiEnhancer
             if (f.footer != null)
             {
                 float totalSize = 0f; // 합계 숫자 크기 (손님 예산 숫자도 같은 글꼴, 같은 크기로)
-                TMP_Text budget = null;
+                TMP_Text budget = null, totalValue = null;
                 foreach (Transform row in f.footer)
                 {
                     if (row.name != "FooterRow") continue;
@@ -75,9 +75,9 @@ namespace UiEnhancer
                     bool total = label != null && label.text != null && label.text.Contains("합계");
                     bool red = value != null && (restyled.TryGetValue(value, out Color ov) ? IsRed(ov) : IsRed(value.color));
                     SetText(label, SoftWhite);
-                    if (total) { SetText(value, red ? value.color : Mint, pixel, TotalTextScale); if (value != null) totalSize = value.fontSize; }
+                    if (total) { SetText(value, red ? value.color : Mint, pixel, TotalTextScale); if (value != null) totalSize = value.fontSize; totalValue = value; }
                     else SetText(value, red ? value.color : SoftWhite);
-                    if (label != null && label.text != null && label.text.Contains("예산")) budget = value;
+                    if (label != null && label.text != null && (label.text.Contains("예산") || label.text.Contains("자금"))) budget = value; // 손님 예산(팔 때) / 보유 자금(살 때)
                 }
                 if (budget != null && totalSize > 0f)
                 {
@@ -85,6 +85,9 @@ namespace UiEnhancer
                     budget.enableAutoSizing = false;
                     if (Mathf.Abs(budget.fontSize - totalSize) > 0.01f) budget.fontSize = totalSize;
                 }
+                // 합계가 손님 예산(팔 때) / 내 보유 자금(살 때)보다 크면 합계 숫자를 빨갛게
+                if (budget != null && totalValue != null && Number(totalValue.text) > Number(budget.text))
+                    SetColor(totalValue, OverBudgetColor);
             }
 
             // 목록 안: 소제목 줄(도매 할인 제안 등) 판/글자, 줄에 마우스 올렸을 때 상자(Frame/Border, Bar), 줄 사이 선
@@ -211,6 +214,21 @@ namespace UiEnhancer
             }
             textStyle.Clear();
             baseSize.Clear();
+        }
+
+        // 글 속 숫자만 이어 붙여 읽기 ("4,628₵" → 4628). 없으면 0
+        private static long Number(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+            long n = 0;
+            bool tag = false;
+            foreach (char ch in s)
+            {
+                if (ch == '<') tag = true;
+                else if (ch == '>') tag = false;
+                else if (!tag && ch >= '0' && ch <= '9' && n < 100000000000L) n = n * 10 + (ch - '0');
+            }
+            return n;
         }
 
         private static bool IsRed(Color c) => c.r > 0.6f && c.g < 0.45f && c.b < 0.45f;
