@@ -19,6 +19,17 @@ namespace UiEnhancer
         private static NegotiationTabletFrame Frame()
             => Traverse.Create(NegociationUIManager.Instance).Field("frame").GetValue() as NegotiationTabletFrame;
 
+        private static bool dirty = true;
+        private float nextFullPass;
+        private const float FullPassInterval = 0.25f; // 초. 게임이 알리지 않고 바꾼 부분도 이 간격 안에 따라잡는다
+
+        internal static void MarkDirty() => dirty = true;
+
+        internal static bool IsInfoHost(RectTransform r)
+        {
+            try { return NegociationUIManager.Instance != null && Frame()?.infoHost == r; } catch { return false; }
+        }
+
         private void DockTablet()
         {
             GameObject ui = NegociationUIManager.Instance != null ? NegociationUIManager.Instance.uiObject : null;
@@ -28,14 +39,19 @@ namespace UiEnhancer
             {
                 Undock();
                 docked = prt;
+                dirty = true;
                 savedScale = prt.localScale;
                 savedPos = prt.anchoredPosition;
             }
             NegotiationTabletFrame f = Frame();
+            // 무거운 일(거래창 부품 전체 훑기: 색, 글자 크기, 목록 줄 폭)은 내용이 바뀐 프레임 + FullPassInterval 마다만
+            bool full = dirty || Time.unscaledTime >= nextFullPass;
+            if (full) { dirty = false; nextFullPass = Time.unscaledTime + FullPassInterval; }
             HideTabletArt(f);
-            Restyle(prt);
-            StyleTablet(f);
-            LayoutColumns(prt, f);
+            if (full) Restyle(prt);
+            StyleTablet(f, full);
+            LayoutColumns(prt, f, full);
+            DrawDebugBorder(prt);
 
             // 윈도우가 다 내려왔을 때의 회색 칸 (월드 좌표)
             var c = new Vector3[4];
@@ -75,8 +91,64 @@ namespace UiEnhancer
             art.enabled = false;
         }
 
+        // 디버그용 빨간 테두리 (Settings.DebugBorder): 거래창 전체, 왼쪽 칸, 오른쪽 칸
+        private GameObject debugBorder;
+
+        private void DrawDebugBorder(RectTransform root)
+        {
+            if (!DebugBorder) return;
+            if (debugBorder != null && debugBorder.transform.parent == root) return;
+            if (debugBorder != null) Destroy(debugBorder);
+            debugBorder = new GameObject("VME_DebugBorder", typeof(RectTransform));
+            var holder = (RectTransform)debugBorder.transform;
+            holder.SetParent(root, false);
+            holder.anchorMin = Vector2.zero; holder.anchorMax = Vector2.one;
+            holder.offsetMin = holder.offsetMax = Vector2.zero;
+            Box(holder, null);                                              // 거래창 전체 (크기 따라감)
+            Box(holder, new Rect(LeftX, TopY, LeftW, ColumnH));             // 왼쪽 칸
+            Box(holder, new Rect(RightX, TopY, RightW, ColumnH));           // 오른쪽 칸
+        }
+
+        // area = 거래창 왼쪽 위 기준 (x, y 아래로 +, w, h). null 이면 부모 전체
+        private static void Box(RectTransform parent, Rect? area)
+        {
+            var go = new GameObject("Box", typeof(RectTransform));
+            var box = (RectTransform)go.transform;
+            box.SetParent(parent, false);
+            if (area.HasValue)
+            {
+                Rect a = area.Value;
+                box.anchorMin = box.anchorMax = box.pivot = new Vector2(0f, 1f);
+                box.anchoredPosition = new Vector2(a.x, -a.y);
+                box.sizeDelta = new Vector2(a.width, a.height);
+            }
+            else
+            {
+                box.anchorMin = Vector2.zero; box.anchorMax = Vector2.one;
+                box.offsetMin = box.offsetMax = Vector2.zero;
+            }
+            const float w = 3f;
+            Line(box, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -w), Vector2.zero); // 위
+            Line(box, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, w));  // 아래
+            Line(box, new Vector2(0f, 0f), new Vector2(0f, 1f), Vector2.zero, new Vector2(w, 0f));  // 왼쪽
+            Line(box, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-w, 0f), Vector2.zero); // 오른쪽
+        }
+
+        private static void Line(RectTransform parent, Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax)
+        {
+            var go = new GameObject("Line", typeof(RectTransform));
+            var r = (RectTransform)go.transform;
+            r.SetParent(parent, false);
+            r.anchorMin = aMin; r.anchorMax = aMax; r.offsetMin = oMin; r.offsetMax = oMax;
+            var img = go.AddComponent<Image>();
+            img.color = Color.red;
+            img.raycastTarget = false;
+        }
+
         private void Undock()
         {
+            if (debugBorder != null) Destroy(debugBorder);
+            debugBorder = null;
             Unstyle();
             if (hiddenArt != null) hiddenArt.enabled = true;
             hiddenArt = null;

@@ -11,6 +11,21 @@ namespace UiEnhancer
         private static void Postfix() => UiEnhancerMod.EnsureWindow();
     }
 
+    // 게임이 거래창 내용(목록, 관심사 등)을 새로 만들 때 부르는 함수.
+    //  - 모드에 "내용이 바뀌었다" 고 알린다 → 이번 프레임에 거래창 전체를 다시 꾸민다 (평소엔 가끔만, 무거워서)
+    //  - 관심사 줄: 옛 부품은 Destroy 해도 프레임 끝에야 지워져 옛/새가 한 프레임 같이 배치된다 → 바로 꺼 둔다 (꺼진 건 배치에서 건너뜀)
+    [HarmonyLib.HarmonyPatch(typeof(TabletUI), nameof(TabletUI.ClearChildren))]
+    internal static class ClearChildrenPatch
+    {
+        private static void Prefix(RectTransform container)
+        {
+            if (container == null) return;
+            ClientWindow.MarkDirty();
+            if (container.name != "InfoHost" && !ClientWindow.IsInfoHost(container)) return;
+            foreach (Transform c in container) c.gameObject.SetActive(false);
+        }
+    }
+
     public class UiEnhancerMod : IMod
     {
         internal const string ModId = "ui-enhancer";

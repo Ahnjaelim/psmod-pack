@@ -28,7 +28,16 @@ namespace UiEnhancer
         private const float LeftX = 24f, LeftW = 276f;        // 왼쪽 칸: 손님 이름 / 부제 / 관심사
         private const float RightX = 360f, RightW = 570f;     // 오른쪽 칸: 거래 목록 + 금액 줄
         private const float TopY = 40f;                       // 두 칸 위쪽
+        private const float InfoY = 90f, InfoH = 40f;        // 관심사 줄: 왼쪽 칸 위에서 InfoY 아래, 높이 InfoH (너비는 LeftW, 내용은 넘쳐도 보임)
+        private const float InfoLabelGap = 6f;                // "관심사" 글자와 태그 사이
+        private const float InfoTagGap = 8f;                  // 태그 사이 (가로)
+        private const float InfoLineGap = 6f;                 // 태그 줄 사이 (줄바꿈됐을 때)
+        private const float InfoGroupGap = 14f;               // 묶음 사이 (제한 / 관심사)
         private const float ListH = 400f, FooterH = 70f;      // 목록 높이, 금액 줄 높이
+        private const float ColumnH = ListH + FooterH + 30f;  // 칸 높이 (목록 + 구분선 여백 + 금액 줄)
+        private const float ScrollbarGap = 6f;                // 목록 글자와 스크롤 막대 사이 (막대는 칸 오른쪽 끝에 붙음)
+        private const float RowRightPad = 6f;                 // 목록 오른쪽 숫자(가격, 관심 없음)를 목록 오른쪽 끝에서 이만큼 안쪽으로
+        private const float RowInset = 4f;                    // 목록 줄 폭 = 목록 너비 - 이만큼 (마우스 올렸을 때 상자 오른쪽 테두리 잘림 방지)
         private const float ButtonsW = 562f;                  // 버튼 줄 너비 (게임 원래 562 → 버튼은 그 안 가운데)
         private const float ButtonsY = TabletH - 55f;         // 버튼 줄 위치 = 거래창 바닥에서 55 위
 
@@ -36,6 +45,8 @@ namespace UiEnhancer
         private const float NameTextScale = 1.35f;  // 손님 이름 글자 배율
         private const float TotalTextScale = 1.5f;  // 합계 금액 글자 배율
         private const float ListTextScale = 1.2f;   // 거래 목록 글자 배율 (물건 이름, 가격, 소제목)
+        private const float InfoLabelScale = 1.3f;  // "관심사", "제한" 글자 배율
+        private const float InfoTagScale = 1.3f;    // 태그(식품, 공구 등) 배율: 판/글자/아이콘 통째로
 
         // ---- 거래창 색 ----
         private static readonly Color Mint = new Color32(0x2b, 0xc4, 0xb0, 0xff);
@@ -46,5 +57,8 @@ namespace UiEnhancer
         private static readonly Color SubHeaderPlateColor = new Color(Mint.r, Mint.g, Mint.b, 0.15f);          // 소제목 줄 판 (도매 할인 제안 등)
         private static readonly Color RowLineColor = new Color(1f, 1f, 1f, 0f);                                // 목록 줄 사이 선
         private static readonly Color ButtonHoverColor = new Color(Mint.r, Mint.g, Mint.b, 0.18f);             // 버튼에 마우스 올렸을 때 바탕
+
+        // ---- 디버그 ----
+        private static readonly bool DebugBorder = false; // true 면 빨간 테두리: 거래창 전체, 왼쪽 칸, 오른쪽 칸
     }
 }

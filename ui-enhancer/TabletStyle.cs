@@ -37,7 +37,7 @@ namespace UiEnhancer
             }
         }
 
-        private void StyleTablet(NegotiationTabletFrame f)
+        private void StyleTablet(NegotiationTabletFrame f, bool full)
         {
             if (f == null) return;
             TMP_FontAsset pixel = f.sectionHeader != null ? f.sectionHeader.font : null; // 게임 픽셀 제목 글꼴
@@ -64,6 +64,8 @@ namespace UiEnhancer
             // 금액 줄: 점선 숨김, 글자 흰색, "합계" 금액은 민트 큰 픽셀 숫자 (게임이 빨갛게 한 금액은 그대로)
             if (f.footer != null)
             {
+                float totalSize = 0f; // 합계 숫자 크기 (손님 예산 숫자도 같은 글꼴, 같은 크기로)
+                TMP_Text budget = null;
                 foreach (Transform row in f.footer)
                 {
                     if (row.name != "FooterRow") continue;
@@ -73,13 +75,20 @@ namespace UiEnhancer
                     bool total = label != null && label.text != null && label.text.Contains("합계");
                     bool red = value != null && (restyled.TryGetValue(value, out Color ov) ? IsRed(ov) : IsRed(value.color));
                     SetText(label, SoftWhite);
-                    if (total) SetText(value, red ? value.color : Mint, pixel, TotalTextScale);
+                    if (total) { SetText(value, red ? value.color : Mint, pixel, TotalTextScale); if (value != null) totalSize = value.fontSize; }
                     else SetText(value, red ? value.color : SoftWhite);
+                    if (label != null && label.text != null && label.text.Contains("예산")) budget = value;
+                }
+                if (budget != null && totalSize > 0f)
+                {
+                    if (pixel != null && budget.font != pixel) budget.font = pixel; // 합계와 같은 픽셀 글꼴
+                    budget.enableAutoSizing = false;
+                    if (Mathf.Abs(budget.fontSize - totalSize) > 0.01f) budget.fontSize = totalSize;
                 }
             }
 
             // 목록 안: 소제목 줄(도매 할인 제안 등) 판/글자, 줄에 마우스 올렸을 때 상자(Frame/Border, Bar), 줄 사이 선
-            if (f.content != null)
+            if (full && f.content != null)
             {
                 foreach (Transform row in f.content)
                 {
