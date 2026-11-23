@@ -57,7 +57,27 @@ namespace ShopExpansion
             GameItem m = MachineAutoButcher.CreateAutoButcher();
             m.name = "수족관 전용 도축기";
             m.EnableTag(FixedTag);
+            DropCageTab(m);
             return m;
+        }
+
+        // 수족관 전용 도축기는 수조에만 꽂히니 "우리"(동물) 탭을 뺀다 (0.9.3). 남은 수조 탭이 0번이 되어 항상 선택된다.
+        // 게임 창은 우리 탭 설정도 계속 읽고 쓰지만 화면에만 없을 뿐이라 무해하다.
+        private static void DropCageTab(GameItem m)
+        {
+            try
+            {
+                if (m.contentWindow == null) return;
+                foreach (TreeNodeRender t in m.contentWindow.handler.GetComponentsInChildren<TreeNodeRender>(true))
+                {
+                    if (!(t.element is MachineryTabs tabs) || tabs.count < 2) continue;
+                    PixelElement cage = tabs.GetPage(0);
+                    if (cage != null && tabs.Detach(cage)) tabs.Select(0);
+                    return;
+                }
+                Debug.LogWarning("[ShopExpansion] aqua butcher: tabs not found");
+            }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] aqua butcher cage tab: " + ex.Message); }
         }
 
         private static GameItem CreateAquaTank()
