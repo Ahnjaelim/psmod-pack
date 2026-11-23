@@ -10,10 +10,11 @@ on another machine find the Steam install). Each folder is a separate mod:
 
 | Folder | Mod name (ID) | Deployed to | Version |
 |---|---|---|---|
-| `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` | 2.26.0 |
-| `map-extension/` | 지도 확장 (`map-extension`) | `Mods/MapExtension` | 0.40.3 |
+| `PersonalQoLTweaks/` | 개인 편의성 패치 (`personal-qol-tweak`) | `Mods/PersonalQoLTweaks` | 2.27.5 |
+| `map-extension/` | 지도 확장 (`map-extension`) | `Mods/MapExtension` | 0.43.4 |
 | `korean-patch/` | 한국어 패치 (`korean-patch`) | `Mods/KoreanPatch` | 0.3.0 |
-| `ui-enhancer/` | UI 개선 (`ui-enhancer`) | `Mods/UiEnhancer` | 0.1.0 (empty skeleton) |
+| `ui-enhancer/` | UI 개선 (`ui-enhancer`) | `Mods/UiEnhancer` | 0.10.21 |
+| `shop-expansion/` | 가게 증축 (`shop-expansion`) | `Mods/ShopExpansion` | 0.4.0 |
 
 `map-extension/NOTES.md` is the detailed per-version design log (Korean). Read it before touching map-extension.
 
@@ -34,6 +35,7 @@ on another machine find the Steam install). Each folder is a separate mod:
   - reference guard types: `ModLoader`, `ModTrust*`, `ModFingerprint`, `ModScanner`, `ModCapability`, `ModWorkshop`, `SteamManager`, `PaperBookRegistry`, `ModReflect`;
   - use `System.IO.File/Directory` directly (→ "files" capability). Use `ModHelper.GetModFolder / ReadModFileBytes / ModFileExists`;
   - call `Traverse.GetValue<T>()` / AccessTools generics with a **System** type argument (→ "reflection-external"). Use non-generic `GetValue()` + `as` cast. Generics with game types are fine.
+- Register network upgrades (`ModHelper.AddNetworkUpgrade`) in `OnGameLoadedLate`, not `OnEnable`: at OnEnable `PlayerStore.Instance` builds a new PlayerStore and throws NRE.
 - Mod save data: `ModHelper.SetModData/GetModData/RemoveModData(modId, key, string)` → stored in the save (`playerStore.modData`), saved/rolled back with the save.
 - Files are a mix of LF and CRLF. When patching with Python, normalize `\r\n` and write back with the original newline; Python on Windows writes CRLF by default. Avoid `sed` replacements containing `\U` (uppercases the rest).
 
@@ -87,6 +89,50 @@ Useful anchors: `MapUIManager` (outing travel/return), `TransitUI` (outing map w
   mod's folder as `Localization/ko.csv` (the game's ModLoader loads `<mod>/Localization/<locale>.csv`; CorpPresence reads it via
   `LoadedMod.Localization`). Only keyed strings; unkeyed `L.T(zh,en)` text stays English. Rebuild after a CorpPresence update.
 - `KoreanPatchMod.cs` = Mulmaru font for display/sci-fi roles (runs after the translation's font patch).
+
+## shop-expansion (0.4.0)
+
+- Side rooms (옆방), up to 3, bought as Wild network Advanced-tab upgrades `VSE_SHOP_ROOM_1..3` (`RoomUpgrades.cs`).
+- `Rooms.cs` — entering a room hides the shop scene (same objects the game hides in `EmporiumEntry.OnLeaveStore`, minus `invWindow`)
+  plus open item windows, and shows a full-screen UI cover image just before `RenderHandler.windowRootObject` (hides every UI layered below the main inventory). Returns to the shop automatically on
+  customer (`NegociationUIManager.OpenUI`), end of day, `OnLeaveStore`, save load. Purpose per room in mod data `room/<n>/purpose`.
+- `RoomPanel.cs` — room tab buttons on the right wall (vertical, right of the poster), room header, purpose picker.
+- `HiddenStore.cs` — mod-private hidden inventories, one real game machine per key, saved as mod data `hidden/<key>` (EncodeSaveItem), ticked nightly in a `PlayerStore.EndNight` postfix (Early/normal/Late), never added to `FindAllItem`.
+- `AquaTank.cs` — aquaculture room tank = a real `ras` item in HiddenStore, 30x16 tank (wide) via the RAS size-upgrade tags, power fixed 4/day, window laid out (left column + tank) by a `MachineryPanelRow.Validate` prefix that replaces the game layout for this row (a postfix ping-ponged with the game layout and froze the game) (panel order untouched = save-safe).
+- `ShopItems.cs` — the mod's own item ids registered in `DirectoryMaster` via an `ItemDirectory` MonoBehaviour added in `Init` (so saves reload them through our factories): `vse_aqua_feeder`, `vse_aqua_butcher` (copies of the game feeder/auto butcher, fixed into the tank, not removable).
+- `shop-expansion/NOTES.md` = per-version log.
+
+### shop-expansion handoff (2026-11-23)
+
+What the user wants (their design, keep to it):
+- Shop "옆방": buy an empty room (Wild network Advanced tab, max 3), then pick a use: 양식장 / 사육장 / 숙성고 / 온실 (+ 작업실 / 창고 I added).
+  Move between shop and rooms any time while in the shop. In a room only the main inventory stays; every other UI (game + other mods) is hidden.
+- Each use gets built-in machines that are **real game items kept in the hidden inventory** (`HiddenStore`), so game rules apply unchanged.
+  The user expects many more such "items that don't exist in the game" for later room types; reuse HiddenStore + ShopItems for them.
+- 양식장 (done first): one big built-in tank instead of juggling 3–4 RAS machines. Tank = 30x16 (wide; user asked for wide, the 16x30 tall
+  version did not fit the screen), = 5 fully upgraded RAS (12x8). Power fixed 4/day (user: "4 full-upgraded RAS worth").
+  Window: left column power / water / filters, right the tank. Feeder and butcher slots are hidden in the window; instead
+  "수족관 전용 급이기 / 도축기" (`vse_aqua_feeder` / `vse_aqua_butcher`) are auto-placed into those slots when the room becomes 양식장,
+  cannot be removed, and open from two buttons on the room floor ("작업대", left of the main inventory).
+
+Status:
+- User confirmed in game (0.2.x–0.3.x): room buttons, purpose picker, backgrounds, UI hiding (after the shutter fix), tank window opens.
+- 0.4.0 (feeder/butcher copies + auto-place + floor buttons) is deployed but **not yet tested in game**.
+- Not yet verified: fish actually grow/feed overnight in the hidden tank, save → reload keeps tank contents, feeder fill works from the floor button.
+
+Pending decisions (ask the user, don't guess):
+- Upgrade content of the aqua feeder / butcher ("업그레이드 내용은 이따 정해주겠음"). I suggested feeder storage 6x4 → 12x8.
+- Efficiency upgrades cannot be applied to the hidden tank (the item is not draggable); power is simply fixed at 4.
+- Floor-button position / look (user may send a screenshot). Backgrounds are the user's images `img/room-<purpose key>.png`; 온실/작업실 have none yet (`empty-room.png`).
+- Other room types (사육장, 숙성고, 온실) have no machines yet.
+
+Gotchas learned here:
+- Register network upgrades and touch `PlayerStore` only after save load (`OnGameLoadedLate`); at `OnEnable` it throws NRE.
+- Machine windows: never re-layout in a `MachineryPanelRow.Validate` postfix (froze the game); replace it in a prefix for our row only,
+  and shrink panel contents with `MachineryContainerUtils.TryResize(content, 0, 0)` before `ResizePixels(0, 0)` (intakes remember old sizes).
+- In a room the `RoomPanel` sits after `windowRootObject` (else invisible game windows over the customer area eat clicks); the cover
+  and its hotspots sit before it (so opened machine windows are on top).
+- Rooms hide `StoreShutterButton.shutterGameObject` + the blocker parent explicitly (the shutter draws above the cover).
 
 ## Open items / plans
 

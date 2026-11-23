@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod>
+  <ID>shop-expansion</ID>
+  <Name>가게 증축</Name>
+  <Author>me</Author>
+  <ModVersion>0.4.0</ModVersion>
+  <Description>Shop expansion: buy up to 3 side rooms (Wild network, Advanced tab), pick a use for each, switch rooms from the shop screen.</Description>
+  <Assemblies>
+    <Assembly>ShopExpansion.dll</Assembly>
+  </Assemblies>
+  <Capabilities/>
+</Mod>

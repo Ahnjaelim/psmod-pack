@@ -18,12 +18,13 @@ namespace MapExtension
             RetiredMerchants.Register();
             FarmLocations.Register();
             Roaming.Register();
-            BranchRenovation.Register();
             ModHook.OnGameLoadedLate += OnGameLoaded;
         }
 
         private static void OnGameLoaded()
         {
+            // 분점 개보수 업그레이드: 세이브를 불러온 뒤에 등록 (OnEnable 때는 PlayerStore 가 아직 없어 오류가 났다, 0.43.4)
+            try { BranchRenovation.Register(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] renovation: " + ex.Message); }
             try { BranchPanel.Ensure(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] branch panel: " + ex.Message); }
             try { OutingHud.Ensure(); } catch (Exception ex) { Debug.LogWarning("[MapExtension] hud: " + ex.Message); }
             try { SaveDb.Read(); }

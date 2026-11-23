@@ -1,0 +1,27 @@
+# 가게 증축 (shop-expansion) 작업 기록
+
+- 0.1.0: 빈 뼈대 (csproj, manifest, 모드 클래스).
+- 0.2.0: 옆방 증축 첫 버전.
+  - 조 와일드 네트워크 Advanced(엔드 콘텐츠) 탭에 "가게 증축 I~III" (3000/6000/10000, 앞 단계 필요). 방 수 = 산 단계 수 (`VSE_SHOP_ROOM_<n>`).
+  - 가게 화면 왼쪽 아래(분점 버튼 위, y=122) 방 버튼 줄 [가게] [방 n · 용도]. 언제든 이동 (손님 응대 중 제외).
+  - 방 = 가게 배경/기계/고정 창(`storePhysical`, `storeInteractables`, 쓰레기통·진열장·카운터 등)과 열어 둔 창을 숨기고 방 배경(`img/room-<용도 key>.png`, 없으면 `img/empty-room.png` → `img/bg_placeholder.png`)을 띄운다. 메인 인벤토리만 그대로.
+  - 빈 방에 들어가면 용도 고르기 (양식장/사육장/숙성고/온실/작업실/창고). 아직 이름과 배경만, 기능 없음. 저장: 모드 데이터 `room/<n>/purpose`.
+  - 자동으로 가게로 돌아가기: 거래창 열림(손님), 하루 정산 화면, `EmporiumEntry.OnLeaveStore`(외출 등) 직전, 세이브 불러오기.
+- 0.2.1: 용도별 배경 추가 (사용자 그림). 수족관→양식장 `room-aquaculture`, 사육장 `room-breeding`, 와이너리→숙성고 `room-aging`, 펜트리→창고 `room-storage`. 온실/작업실은 아직 `empty-room.png`.
+- 0.2.2: 증축 업그레이드가 안 보이던 것 수정. 모드가 켜질 때(OnEnable) 등록하면 PlayerStore 가 아직 없어 오류 → 세이브 불러온 뒤(OnGameLoadedLate) 등록.
+- 0.2.3: 방 버튼을 왼쪽 아래(쓰레기통에 가려짐) → 오른쪽 벽 포스터 오른쪽 빈 곳에 세로 줄로 (x 1734~1904, 위에서 250부터).
+- 0.2.4: 용도 고르기 윗줄(양식장/사육장) 클릭 안 되던 것 수정: 손님 자리 투명 창(responseWindow(Closable), bazarLeftInv, hireling)도 숨기고, 방 안에서는 RoomPanel 을 창 루트 뒤(창들 위)로. 방 안에서 벽 달력 글씨/소지금/손님 수도 숨김.
+- 0.2.5: 방 배경을 월드 스프라이트 → 화면 전체 UI 덮개(VSE_RoomCover, 아이템 창 캔버스의 창 루트 바로 앞)로. 메인 인벤 아래 층 UI(게임/다른 모드)는 전부 가려진다. 처음 방에 들어갈 때 켜진 최상위 캔버스 목록을 로그에 남김 (위 층에 남는 UI 찾기용). 아이템 창 캔버스에서 창 루트보다 뒤에 있는 형제(지도 확장 분점 버튼 등)는 방에 있는 동안 끈다.
+- 0.2.6: 방 안에 가게 셔터가 남던 것 수정: StoreShutterButton.shutterGameObject + blockerGameObject 부모도 숨김. (로그: 루트 캔버스는 전부 ScreenSpaceOverlay, 덮개는 WindowUICanvas order 0. 위 층 CanvasBack 1, CanvasPaperUI 2, CanvasScreen 3, CanvasScreenLayer2 4, WindowUICanvas2(Overlay) 5, CustomUIOverlayCanvas 900)
+- 0.3.0: 숨김 인벤(HiddenStore) + 양식장 대형 수조(AquaTank).
+  - HiddenStore: 이름표마다 숨김 인벤 하나(12x12) + 기계 하나. 저장 = EncodeSaveItem → 모드 데이터 `hidden/<key>` (SaveGame Prefix), 불러오기 = OnGameLoadedLate 에 비우고 DecodeSaveItem. 밤 = PlayerStore.EndNight Postfix 에서 Early/보통/Late 기계 처리. FindAllItem 에는 안 넣음.
+  - AquaTank: 이름표 `room<n>/aqua-tank` = 게임 `ras` 아이템 + 태그 VSE_ROOM_TANK_TAG. 수조 16x30 (가로/세로 확장 태그 8/26 → ApplyTankSize), 전력 4/일 고정 (UpdatePowerUsage Postfix). 창 배치 = MachineryPanelRow.Validate Postfix: 왼쪽 세로 [전원/물/필터/급이기/도축] + 오른쪽 수조 (급이기·도축은 나중에 방 밖으로 뺄 예정이라 임시로 왼쪽 줄에). 패널 순서(저장 순서)는 그대로, 위치만 바꾼다.
+  - 양식장 배경의 유리 수조 자리(1920x1080 기준 x435 y370 1027x443)를 누르면 수조 창 열기/닫기. 덮개 안에 있어 창을 가리지 않는다. 방을 나가면 수조 창 닫음.
+- 0.3.1: 수조 창을 열면 게임이 멈추던 것 수정(추정 원인: 게임 가로 배치 ↔ 우리 세로 배치가 Validate 로 서로 다시 불러 반복). MachineryPanelRow.Validate 를 Postfix → Prefix(우리 수조 창이면 게임 배치를 건너뛰고 우리 배치만)로. 한 프레임 30번 넘게 불리면 건너뛰고 경고 로그 (안전장치).
+- 0.3.2: 수조 창 왼쪽 줄이 늘어나(전원 칸이 창 높이만큼) 수조 격자가 화면 밖으로 밀리던 것 수정: 칸 안쪽 MachineryIntake 가 예전 요청 크기를 기억 → MachineryContainerUtils.TryResize(content, 0, 0) 후 ResizePixels(0, 0).
+- 0.3.3: 수조를 가로형 30x16 으로 (사용자 요청, 세로 30칸은 화면 높이에 안 맞음). 이미 만든 수조도 불러올 때 Setup 이 크기를 다시 맞춘다.
+- 0.3.4: 수조 창에서 급이기·도축 칸 숨김 (MachineryPanel.SetHidden, 칸은 그대로 있어 저장 안전). 지금은 먹이를 넣을 곳이 없음 → 방 밖 급이기 연결 필요.
+- 0.4.0: 수족관 전용 급이기/도축기.
+  - ShopItems (ItemDirectory, MonoBehaviour 를 Init 때 붙여 DirectoryMaster 에 정식 등록): `vse_aqua_feeder` = livestock_feed_dispenser 복사, `vse_aqua_butcher` = auto_butcher 복사 (아직 업그레이드 없음, 이름만 다름). 태그 VSE_FIXED_FITTING_TAG.
+  - 양식장으로 정하면(Rooms.SetPurpose) 수조를 미리 만들고, 수조의 숨긴 급이기/도축 칸(MachineRAS.GetDispenserSlot/GetButcherSlot)에 꽂는다. 칸의 mayInventoryRemoveItemFunc 를 감싸 FIXED 태그 기계는 못 뺀다. 불러올 때도 Setup 에서 확인.
+  - 양식장 바닥(메인 인벤 왼쪽, x150/x330 y60)에 작업대 버튼 2개(게임 아이템 그림) → 누르면 그 기계 창 열기/닫기. 방을 나가면 닫는다.
