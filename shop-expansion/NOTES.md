@@ -25,3 +25,4 @@
   - ShopItems (ItemDirectory, MonoBehaviour 를 Init 때 붙여 DirectoryMaster 에 정식 등록): `vse_aqua_feeder` = livestock_feed_dispenser 복사, `vse_aqua_butcher` = auto_butcher 복사 (아직 업그레이드 없음, 이름만 다름). 태그 VSE_FIXED_FITTING_TAG.
   - 양식장으로 정하면(Rooms.SetPurpose) 수조를 미리 만들고, 수조의 숨긴 급이기/도축 칸(MachineRAS.GetDispenserSlot/GetButcherSlot)에 꽂는다. 칸의 mayInventoryRemoveItemFunc 를 감싸 FIXED 태그 기계는 못 뺀다. 불러올 때도 Setup 에서 확인.
   - 양식장 바닥(메인 인벤 왼쪽, x150/x330 y60)에 작업대 버튼 2개(게임 아이템 그림) → 누르면 그 기계 창 열기/닫기. 방을 나가면 닫는다.
+- 0.5.0: 수족관 전용 급이기/도축기를 진짜 게임 아이템으로 바닥에: 양식장에 있는 동안 수조 칸에서 꺼내 "작업대" 인벤 창(움직일 수 없음, 1920x1080 기준 왼쪽 위 x150 / 아래에서 y400)에 올려 둔다 → 크기/툴팁/물건 끌어다 넣기/더블클릭 창 열기가 게임 기계와 똑같음. 작업대에는 붙박이 기계만 올라가고 뺄 수 없음. 방을 나갈 때/저장 직전/밤 처리 전에는 수조 칸으로 되돌림(저장 뒤엔 다시 작업대로), 세이브 불러올 때 작업대 비움. 그림 버튼(FittingButton) 제거

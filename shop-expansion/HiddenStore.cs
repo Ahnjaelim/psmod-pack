@@ -79,6 +79,7 @@ namespace ShopExpansion
         // ---- 밤 (게임 PlayerStore.EndNight 와 같은 순서) ----
         internal static void Night()
         {
+            try { AquaTank.StowBench(); } catch { } // 작업대 기계가 수조 칸에 있어야 먹이 주기/도축이 돈다
             List<GameItem> items = AllItems();
             foreach (GameItem i in items)
             {
@@ -154,7 +155,13 @@ namespace ShopExpansion
     {
         private static void Prefix()
         {
+            try { AquaTank.BeforeSave(); } catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench before save: " + ex.Message); }
             try { HiddenStore.Write(); } catch (Exception ex) { Debug.LogWarning("[ShopExpansion] hidden store save: " + ex.Message); }
+        }
+
+        private static void Postfix()
+        {
+            try { AquaTank.AfterSave(); } catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench after save: " + ex.Message); }
         }
     }
 

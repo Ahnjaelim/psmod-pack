@@ -255,6 +255,13 @@ namespace ShopExpansion
                 sprites[tex] = sp;
             }
             RoomPanel.SetCover(sp);
+            // 양식장: 급이기/도축기를 작업대(바닥 인벤 창)에 꺼낸다. 다른 용도면 되돌린다
+            try
+            {
+                if (p != null && p.Key == "aquaculture") AquaTank.ShowBench(room);
+                else AquaTank.StowBench();
+            }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench: " + ex.Message); }
             LogCanvasesOnce();
         }
 

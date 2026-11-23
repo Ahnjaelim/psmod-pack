@@ -68,8 +68,7 @@ namespace ShopExpansion
                 aquaTable = new GameObject("AquaTable", typeof(RectTransform));
                 aquaTable.transform.SetParent(coverRt, false);
                 Stretch((RectTransform)aquaTable.transform);
-                FittingButton((RectTransform)aquaTable.transform, "급이기", "Items/items_husbandry", "animal_feeder", 150f, 60f, () => AquaTank.ToggleFitting(Rooms.Current, true));
-                FittingButton((RectTransform)aquaTable.transform, "도축기", "Items/items_tool2", "gibber", 330f, 60f, () => AquaTank.ToggleFitting(Rooms.Current, false));
+                // 급이기/도축기 그림 버튼은 0.5.0 부터 작업대 창(진짜 게임 아이템, AquaTank.ShowBench)으로 바뀜
             }
             coverImg.sprite = sp;
             coverImg.enabled = sp != null;

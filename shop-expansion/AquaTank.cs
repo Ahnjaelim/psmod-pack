@@ -59,6 +59,7 @@ namespace ShopExpansion
 
         internal static void AfterLoad()
         {
+            ResetBench();
             rows.Clear();
             lockedSlots.Clear();
             foreach (GameItem m in HiddenStore.Machines().ToList())
@@ -80,7 +81,7 @@ namespace ShopExpansion
         private static void Fit(GameItem m, GameSlotInventory slot, string id)
         {
             if (slot == null) { Debug.LogWarning("[ShopExpansion] tank slot for " + id + " not found"); return; }
-            if (slot.childItem == null)
+            if (slot.childItem == null && !Benched(m)) // 작업대에 꺼내 둔 동안은 칸이 비어 있는 게 정상 (새로 만들면 둘이 된다)
             {
                 GameItem f = ShopItems.Spawn(id);
                 if (f != null)
@@ -94,9 +95,114 @@ namespace ShopExpansion
             {
                 var prev = slot.mayInventoryRemoveItemFunc;
                 slot.mayInventoryRemoveItemFunc = (item, inv) =>
-                    (item == null || !item.IsTag(ShopItems.FixedTag)) && (prev == null || prev(item, inv));
+                    (moving || item == null || !item.IsTag(ShopItems.FixedTag)) && (prev == null || prev(item, inv));
             }
         }
+
+        // ---- 작업대: 양식장에 있는 동안 급이기/도축기를 바닥의 진짜 게임 인벤 창에 꺼내 둔다 ----
+        // 게임 아이템 그대로라 크기/툴팁/물건 끌어다 넣기/더블클릭 창 열기가 원래 기계와 똑같다.
+        // 방을 나갈 때, 저장할 때, 밤 처리 전에는 수조 칸에 다시 꽂는다 (수조가 칸에 꽂힌 기계로 먹이 주기/도축을 하기 때문)
+        private static PixelWindow benchWin;
+        private static GameInventory benchInv;
+        private static GameItem benchHolder;
+        private static int benchRoom = -1;
+        private static bool moving;
+
+        private static bool Benched(GameItem tank) => benchRoom > 0 && tank != null && Get(benchRoom) == tank;
+
+        private static void EnsureBench(GameItem f, GameItem b)
+        {
+            if (benchWin != null) return;
+            int w = f.shape.width + 1 + b.shape.width;
+            int h = Mathf.Max(f.shape.height, b.shape.height);
+            (benchWin, benchInv) = DirectoryUtils.CreateInventoryWindow(w, h, false);
+            try { benchWin.SetTitle("작업대"); } catch { }
+            // 주운 물건이 내 소유라 소유 표시 없는 칸에는 못 들어간다 → 창 주인 아이템도 내 소유로 (HiddenStore 와 같은 방식)
+            benchHolder = ItemDirectory.CreateEmptyItem("vse_bench_holder").SetContentWindow(benchWin).SetSpriteAndShape("Items/items_container", "evidence_box");
+            benchHolder.name = "작업대";
+            benchHolder.EnableTag("IS_OWNED_TAG");
+            // 붙박이 기계만 올라가고, 끌어서 뺄 수 없다
+            benchInv.mayInventoryAddItemFunc = (item, inv) => item != null && item.IsTag(ShopItems.FixedTag);
+            benchInv.mayInventoryRemoveItemFunc = (item, inv) => moving || item == null || !item.IsTag(ShopItems.FixedTag);
+        }
+
+        // 양식장 방에 들어왔을 때 (배경을 바꿀 때마다 불림)
+        internal static void ShowBench(int room)
+        {
+            if (benchRoom == room) { Place(); return; }
+            StowBench();
+            GameItem m = Ensure(room);
+            if (m == null) return;
+            GameSlotInventory fs = MachineRAS.GetDispenserSlot(m), bs = MachineRAS.GetButcherSlot(m);
+            GameItem f = fs?.childItem, b = bs?.childItem;
+            if (f == null || b == null) { Debug.LogWarning("[ShopExpansion] bench: fittings missing"); return; }
+            EnsureBench(f, b);
+            moving = true;
+            try
+            {
+                foreach (GameItem i in new[] { f, b })
+                {
+                    i.parentInventory?.Expel(i);
+                    if (GraphUtils.TryAcceptAll(benchInv, i) != 0)
+                    {
+                        Debug.LogWarning("[ShopExpansion] bench: " + i.name + " did not fit, back into the tank");
+                        (i == f ? fs : bs).TryAcceptAll(i);
+                    }
+                }
+            }
+            finally { moving = false; }
+            benchRoom = room;
+            Place();
+        }
+
+        // 메인 인벤 왼쪽 바닥 (1920x1080 기준 왼쪽 위 = x 150, 아래에서 y 400)
+        private static void Place()
+        {
+            if (benchWin == null) return;
+            try { benchWin.Show(new Vector2(Screen.width * 150f / 1920f, Screen.height * 400f / 1080f)); }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench show: " + ex.Message); }
+        }
+
+        // 작업대의 기계를 수조 칸으로 되돌린다 (방을 나갈 때 / 저장 / 밤)
+        internal static void StowBench()
+        {
+            if (benchRoom <= 0 || benchInv == null) { benchRoom = -1; return; }
+            GameItem m = Get(benchRoom);
+            moving = true;
+            try
+            {
+                foreach (GameItem i in new List<GameItem>(benchInv.childItems))
+                {
+                    try { i.contentWindow?.Hide(); } catch { }
+                    GameSlotInventory slot = m == null ? null : i.IsTag("FEED_DISPENSER_TAG") ? MachineRAS.GetDispenserSlot(m) : MachineRAS.GetButcherSlot(m);
+                    if (slot == null || slot.childItem != null) { Debug.LogWarning("[ShopExpansion] bench: no slot for " + i.name); continue; }
+                    benchInv.Expel(i);
+                    slot.TryAcceptAll(i);
+                    if (slot.childItem != i) { Debug.LogWarning("[ShopExpansion] bench: " + i.name + " did not go back into the tank"); GraphUtils.TryAcceptAll(benchInv, i); }
+                }
+            }
+            finally { moving = false; }
+            try { benchWin?.Hide(); } catch { }
+            benchRoom = -1;
+        }
+
+        // 세이브를 새로 불러올 때: 작업대에 남은 옛 세이브 기계는 버린다 (불러온 세이브의 기계는 수조 칸에 있다)
+        internal static void ResetBench()
+        {
+            if (benchInv != null)
+                foreach (GameItem i in new List<GameItem>(benchInv.childItems))
+                {
+                    try { i.contentWindow?.Hide(); benchInv.Expel(i); i.Destroy(); } catch { }
+                }
+            try { benchWin?.Hide(); } catch { }
+            benchRoom = -1;
+        }
+
+        private static int savedBenchRoom = -1;
+
+        // 저장 직전: 칸으로 되돌려 같이 저장 / 저장 뒤: 다시 작업대로
+        internal static void BeforeSave() { savedBenchRoom = benchRoom; StowBench(); }
+        internal static void AfterSave() { if (savedBenchRoom > 0 && Rooms.Current == savedBenchRoom) ShowBench(savedBenchRoom); savedBenchRoom = -1; }
 
         // 작업대의 급이기/도축기를 누르면: 그 기계 창 열기 / 다시 누르면 닫기
         internal static void ToggleFitting(int room, bool feeder)
@@ -127,6 +233,7 @@ namespace ShopExpansion
         // 가게로 돌아가거나 다른 방으로 갈 때 수조 창은 닫는다
         internal static void CloseAll()
         {
+            StowBench();
             foreach (GameItem m in HiddenStore.Machines())
             {
                 if (!Is(m)) continue;
