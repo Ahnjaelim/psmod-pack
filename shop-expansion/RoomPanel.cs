@@ -7,7 +7,8 @@ using UnityEngine.UI;
 namespace ShopExpansion
 {
     // 가게 화면 오른쪽 벽 방 버튼 (세로) [가게] [방 1 · 온실] [방 2 · 빈 방] ...  (증축한 방이 있을 때, 가게 안에서만)
-    // 방 안: 위쪽 가운데 방 이름 + [용도 변경]. 용도를 안 정한 방에 들어가면 용도 고르기 창이 바로 뜬다.
+    // 방 안: 위쪽 가운데 방 이름 + [개조](빈 방) / [폐쇄](개조된 방). 빈 방에 처음 들어가면 용도 고르기 창이 뜬다.
+    // 개조된 방은 용도를 바꿀 수 없고, 폐쇄(모든 아이템 삭제, 확인 창) 후 다시 개조한다.
     // 게임 아이템 창 캔버스의 창 루트 바로 앞에 둔다 (지도 확장 분점 버튼과 같은 층: 가게 물건/창 뒤, 배경 위).
     internal class RoomPanel : MonoBehaviour
     {
@@ -30,7 +31,15 @@ namespace ShopExpansion
         private RectTransform coverRt, coverImgRt;
         private Image coverImg;
         // 방 배경 위 누를 수 있는 자리 (덮개 안 = 메인 인벤/기계 창보다 뒤라 창을 가리지 않는다)
-        private GameObject tankSpot, aquaTable;
+        private GameObject tankSpot, aquaTable, fishLayer;
+
+        // 화면 좌표가 지금 보이는 수조 자리 안인가 (TankDrop: 끌어다 놓기)
+        internal static bool IsOverTankSpot(Vector2 screen)
+        {
+            GameObject s = instance != null ? instance.tankSpot : null;
+            if (s == null || !s.activeInHierarchy) return false;
+            return RectTransformUtility.RectangleContainsScreenPoint((RectTransform)s.transform, screen, null);
+        }
 
         internal static void SetCover(Sprite sp)
         {
@@ -63,7 +72,17 @@ namespace ShopExpansion
                 coverImg = ig.AddComponent<Image>();
                 coverImg.raycastTarget = false;
                 // 양식장 배경의 큰 유리 수조 자리 (1920x1080 기준, 아래 왼쪽 원점)
+                // 수조 안에서 헤엄치는 물고기 (수조 자리보다 먼저 = 아래에 그린다)
+                fishLayer = new GameObject("FishSwim", typeof(RectTransform));
+                fishLayer.transform.SetParent(coverRt, false);
+                var flr = (RectTransform)fishLayer.transform;
+                flr.anchorMin = flr.anchorMax = flr.pivot = Vector2.zero;
+                flr.anchoredPosition = Vector2.zero;
+                flr.sizeDelta = new Vector2(1920f, 1080f);
+                fishLayer.AddComponent<FishSwim>();
                 tankSpot = Hotspot(coverRt, "TankSpot", 435f, 370f, 1027f, 443f, () => AquaTank.Toggle(Rooms.Current));
+                tankSpot.AddComponent<TankHover>(); // 마우스를 올리면 대형 수조 툴팁 (TankTooltip.cs)
+                if (DebugTankBorder) tankBorder = DebugBorder((RectTransform)tankSpot.transform, BorderIdle, 3f);
                 // 양식장 작업대: 수족관 전용 급이기 / 도축기 (메인 인벤 왼쪽 바닥)
                 aquaTable = new GameObject("AquaTable", typeof(RectTransform));
                 aquaTable.transform.SetParent(coverRt, false);
@@ -81,12 +100,14 @@ namespace ShopExpansion
             cover.transform.localScale = transform.localScale;
             RoomPurpose cp = Rooms.Purpose(Rooms.Current);
             tankSpot.SetActive(cp != null && cp.Key == "aquaculture");
+            fishLayer.SetActive(cp != null && cp.Key == "aquaculture");
             aquaTable.SetActive(cp != null && cp.Key == "aquaculture");
             cover.SetActive(true);
             KeepBehindWindows();
         }
         private GameObject tabRow, roomHeader, picker;
-        private TextMeshProUGUI headerText, pickerTitle;
+        private TextMeshProUGUI headerText, pickerTitle, pickerHint;
+        private RoomPurpose pendingPurpose;
         private readonly List<(int room, GameObject go, Image bg, TextMeshProUGUI label)> tabs = new List<(int, GameObject, Image, TextMeshProUGUI)>();
         private int pickerRoom;
         private int shownBuilt = -1;
@@ -147,10 +168,13 @@ namespace ShopExpansion
             roomHeader.transform.SetParent(transform, false);
             Stretch((RectTransform)roomHeader.transform);
             headerText = Text((RectTransform)roomHeader.transform, "Name", 960f - 300f, 1080f - 40f, 600f, 44f, 30f, Title, TextAlignmentOptions.Center);
-            MakeButton(roomHeader.transform, "용도 변경", 960f - 60f, 1080f - 40f - 44f - 8f - 32f, 120f, 32f, 15f, () => OpenPicker(Rooms.Current));
+            RectTransform hb = MakeButton(roomHeader.transform, "개조", 960f - 60f, 1080f - 40f - 44f - 8f - 32f, 120f, 32f, 15f, HeaderAction);
+            headerButtonLabel = hb.Find("Label").GetComponent<TextMeshProUGUI>();
             roomHeader.SetActive(false);
 
             BuildPicker();
+            BuildCloseConfirm();
+            BuildFreezerGhost();
             RefreshNow();
         }
 
@@ -183,9 +207,16 @@ namespace ShopExpansion
             {
                 string name = "방 " + Rooms.Current + " · " + Rooms.RoomName(Rooms.Current);
                 if (headerText.text != name) ScriptFontSwap.Apply(headerText, name);
-                if (Rooms.Purpose(Rooms.Current) == null && !picker.activeSelf) OpenPicker(Rooms.Current); // 빈 방 → 용도부터
+                bool empty = Rooms.Purpose(Rooms.Current) == null;
+                string hl = empty ? "개조" : "폐쇄";
+                if (headerButtonLabel != null && headerButtonLabel.text != hl) ScriptFontSwap.Apply(headerButtonLabel, hl);
+                // 빈 방에 들어오면 한 번만 용도 고르기 (닫으면 다시 안 뜬다, 다른 방에 갔다 오면 다시)
+                if (empty && autoPickedRoom != Rooms.Current && !picker.activeSelf) { autoPickedRoom = Rooms.Current; OpenPicker(Rooms.Current); }
+                if (!empty && picker.activeSelf) picker.SetActive(false);
             }
             if (!inRoom && picker.activeSelf) picker.SetActive(false);
+            if (!inRoom) autoPickedRoom = -1;
+            if (!inRoom && closeConfirm.activeSelf) closeConfirm.SetActive(false);
         }
 
         // ---- 용도 고르기 창 ----
@@ -203,7 +234,7 @@ namespace ShopExpansion
             rt.sizeDelta = new Vector2(PickW, h);
             Box(rt);
             pickerTitle = Text(rt, "Title", 20f, -16f, PickW - 40f, 34f, 22f, Title, TextAlignmentOptions.Top);
-            Text(rt, "Hint", 20f, -44f, PickW - 40f, 22f, 14f, Dim, TextAlignmentOptions.Top).text = "";
+            pickerHint = Text(rt, "Hint", 20f, -44f, PickW - 40f, 22f, 14f, Dim, TextAlignmentOptions.Top);
             for (int i = 0; i < Rooms.Purposes.Length; i++)
             {
                 RoomPurpose p = Rooms.Purposes[i];
@@ -215,8 +246,153 @@ namespace ShopExpansion
                 label.enableWordWrapping = true;
                 ScriptFontSwap.Apply(label, p.Name + "\n<size=13><color=#9a9aa8>" + p.Desc + "</color></size>");
             }
-            MakeButton(rt, "닫기", PickW / 2f - 60f, h - 46f, 120f, 32f, 15f, () => picker.SetActive(false), anchorTop: true);
+            // 고른 뒤 [개조하기] 로 돈을 낸다 (잘못 눌러 돈이 나가지 않게 두 단계)
+            MakeButton(rt, "개조하기", PickW / 2f - 130f, h - 46f, 120f, 32f, 15f, ConfirmPick, anchorTop: true);
+            MakeButton(rt, "닫기", PickW / 2f + 10f, h - 46f, 120f, 32f, 15f, () => picker.SetActive(false), anchorTop: true);
             picker.SetActive(false);
+        }
+
+        // ---- [개조] / [폐쇄] ----
+        private TextMeshProUGUI headerButtonLabel;
+        private int autoPickedRoom = -1;
+        private GameObject closeConfirm;
+        private TextMeshProUGUI closeConfirmBody;
+        private int closeRoom;
+
+        private void HeaderAction()
+        {
+            int room = Rooms.Current;
+            if (room <= 0) return;
+            if (Rooms.Purpose(room) == null) OpenPicker(room);
+            else OpenCloseConfirm(room);
+        }
+
+        private const float ConfirmW = 520f, ConfirmH = 210f;
+
+        private void BuildCloseConfirm()
+        {
+            closeConfirm = new GameObject("CloseConfirm", typeof(RectTransform));
+            closeConfirm.transform.SetParent(transform, false);
+            var rt = (RectTransform)closeConfirm.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(ConfirmW, ConfirmH);
+            Box(rt);
+            confirmTitle = Text(rt, "Title", 20f, -16f, ConfirmW - 40f, 34f, 22f, Title, TextAlignmentOptions.Top);
+            closeConfirmBody = Text(rt, "Body", 24f, -56f, ConfirmW - 48f, 90f, 16f, Body, TextAlignmentOptions.Top);
+            closeConfirmBody.enableWordWrapping = true;
+            closeConfirmBody.richText = true;
+            RectTransform ok = MakeButton(rt, "확인", ConfirmW / 2f - 130f, ConfirmH - 46f, 120f, 32f, 15f, ConfirmClose, anchorTop: true);
+            confirmOkLabel = ok.Find("Label").GetComponent<TextMeshProUGUI>();
+            MakeButton(rt, "취소", ConfirmW / 2f + 10f, ConfirmH - 46f, 120f, 32f, 15f, () => closeConfirm.SetActive(false), anchorTop: true);
+            closeConfirm.SetActive(false);
+        }
+
+        private void OpenCloseConfirm(int room)
+        {
+            RoomPurpose p = Rooms.Purpose(room);
+            if (p == null) return;
+            closeRoom = room;
+            AskConfirm("방 폐쇄",
+                "방 " + room + "(" + p.Name + ")을(를) 폐쇄할까요?\n"
+                + "<color=#ff8a6b>" + (p.Key == "aquaculture" ? "수조의 물고기를 포함한 " : "") + "방 안의 모든 아이템이 사라지고 빈 방이 됩니다.</color>\n"
+                + "<color=#9a9aa8>폐쇄한 뒤 다시 개조할 수 있습니다 (개조 비용 " + Rooms.PurposeCost.ToString("N0") + "₵).</color>",
+                "폐쇄", () =>
+                {
+                    Rooms.CloseRoom(closeRoom);
+                    autoPickedRoom = closeRoom; // 폐쇄 직후 고르기 창이 바로 뜨지 않게
+                    RefreshNow();
+                });
+        }
+
+        // 확인 창 (폐쇄, 냉동고 추가 등 공용)
+        private TextMeshProUGUI confirmTitle, confirmOkLabel;
+        private Action confirmAction;
+
+        private void AskConfirm(string title, string body, string ok, Action onOk)
+        {
+            ScriptFontSwap.Apply(confirmTitle, title);
+            ScriptFontSwap.Apply(confirmOkLabel, ok);
+            ScriptFontSwap.Apply(closeConfirmBody, body);
+            confirmAction = onOk;
+            if (picker.activeSelf) picker.SetActive(false);
+            closeConfirm.SetActive(true);
+            closeConfirm.transform.SetAsLastSibling();
+            try { AudioManager.Instance.Play2("click_vintage"); } catch { }
+        }
+
+        private void ConfirmClose()
+        {
+            closeConfirm.SetActive(false);
+            Action a = confirmAction;
+            confirmAction = null;
+            try { a?.Invoke(); } catch (Exception ex) { Debug.LogWarning("[ShopExpansion] confirm: " + ex.Message); }
+        }
+
+        // ---- 냉동고 추가 자리: 다음 냉동고가 놓일 빈칸 (점선 느낌 테두리 + "+ 냉동고 추가 / 가격") ----
+        private GameObject freezerGhost;
+        private TextMeshProUGUI freezerGhostLabel;
+
+        private void BuildFreezerGhost()
+        {
+            freezerGhost = new GameObject("FreezerAddSlot", typeof(RectTransform));
+            freezerGhost.transform.SetParent(transform, false);
+            var rt = (RectTransform)freezerGhost.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
+            var img = freezerGhost.AddComponent<Image>();
+            img.color = new Color(1f, 1f, 1f, 0.06f);
+            var b = freezerGhost.AddComponent<Button>();
+            b.targetGraphic = img;
+            var colors = b.colors;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 3f); // 0.06 → 0.18
+            colors.pressedColor = new Color(1f, 1f, 1f, 4f);
+            b.colors = colors;
+            b.onClick.AddListener(AskAddFreezer);
+            DebugBorder(rt, new Color(0.8f, 0.9f, 1f, 0.55f), 2f);
+            var lgo = new GameObject("Label", typeof(RectTransform));
+            lgo.transform.SetParent(rt, false);
+            freezerGhostLabel = lgo.AddComponent<TextMeshProUGUI>();
+            TMP_FontAsset font = FontLoader.Instance != null ? (FontLoader.Instance.notoSans_Normal ?? FontLoader.Instance.notoSans) : null;
+            if (font != null) freezerGhostLabel.font = font;
+            freezerGhostLabel.fontSize = 13f;
+            freezerGhostLabel.color = new Color(1f, 1f, 1f, 0.75f);
+            freezerGhostLabel.alignment = TextAlignmentOptions.Center;
+            freezerGhostLabel.enableWordWrapping = true;
+            freezerGhostLabel.raycastTarget = false;
+            Stretch(freezerGhostLabel.rectTransform);
+            freezerGhost.SetActive(false);
+        }
+
+        private void UpdateFreezerGhost()
+        {
+            if (freezerGhost == null) return;
+            Rect? r = null;
+            int room = Rooms.Current;
+            if (room > 0 && !closeConfirm.activeSelf && !picker.activeSelf) r = Freezers.NextSlotScreenRect(room);
+            if (r == null) { if (freezerGhost.activeSelf) freezerGhost.SetActive(false); return; }
+            float k = Screen.height / 1080f; // 화면 픽셀 → 이 패널 단위
+            var rt = (RectTransform)freezerGhost.transform;
+            rt.anchoredPosition = new Vector2(r.Value.x / k, r.Value.y / k);
+            rt.sizeDelta = new Vector2(r.Value.width / k, r.Value.height / k);
+            string label = "+ 냉동고 추가\n" + Freezers.CostOf(Freezers.Count(room)).ToString("N0") + "₵";
+            if (freezerGhostLabel.text != label) ScriptFontSwap.Apply(freezerGhostLabel, label);
+            if (!freezerGhost.activeSelf) freezerGhost.SetActive(true);
+        }
+
+        private void AskAddFreezer()
+        {
+            int room = Rooms.Current;
+            if (room <= 0) return;
+            int n = Freezers.Count(room);
+            if (n >= Freezers.Max) return;
+            int cost = Freezers.CostOf(n);
+            int cash = PlayerStore.Instance != null ? PlayerStore.Instance.playerCash : 0;
+            if (cash < cost) { Rooms.Notify("비용이 부족하다. (필요 " + cost.ToString("N0") + "₵, 소지 " + cash.ToString("N0") + "₵)"); return; }
+            AskConfirm("냉동고 추가",
+                "냉동고를 하나 더 놓을까요? (" + (n + 1) + "/" + Freezers.Max + ")\n"
+                + "비용 " + cost.ToString("N0") + "₵ (소지 " + cash.ToString("N0") + "₵)\n"
+                + "<color=#9a9aa8>생선 부속물만 넣을 수 있는 " + Freezers.InnerW + "x" + Freezers.InnerH + " 보관함입니다.</color>",
+                "추가", () => Freezers.TryBuy(room));
         }
 
         private void OpenPicker(int room)
@@ -224,16 +400,38 @@ namespace ShopExpansion
             if (room <= 0) return;
             pickerRoom = room;
             ScriptFontSwap.Apply(pickerTitle, "방 " + room + " 용도 정하기");
+            pendingPurpose = null;
+            UpdateHint();
             picker.SetActive(true);
             picker.transform.SetAsLastSibling();
         }
 
         private void Pick(RoomPurpose p)
         {
-            Rooms.SetPurpose(pickerRoom, p);
-            picker.SetActive(false);
-            Rooms.Notify("방 " + pickerRoom + "을(를) " + p.Name + "(으)로 정했다.");
+            pendingPurpose = p;
             try { AudioManager.Instance.Play2("click_vintage"); } catch { }
+            UpdateHint();
+        }
+
+        private void UpdateHint()
+        {
+            int cash = PlayerStore.Instance != null ? PlayerStore.Instance.playerCash : 0;
+            string cost = "개조 비용 " + Rooms.PurposeCost.ToString("N0") + "₵ (소지 " + cash.ToString("N0") + "₵)";
+            string text = pendingPurpose == null
+                ? "용도를 고르고 [개조하기]를 누르세요. " + cost
+                : "<color=#ffcf6b>" + pendingPurpose.Name + "</color>(으)로 개조 · " + cost;
+            pickerHint.richText = true;
+            ScriptFontSwap.Apply(pickerHint, text);
+        }
+
+        private void ConfirmPick()
+        {
+            if (pendingPurpose == null) { Rooms.Notify("먼저 용도를 고르세요."); return; }
+            RoomPurpose p = pendingPurpose;
+            if (!Rooms.TryBuyPurpose(pickerRoom, p)) { UpdateHint(); return; }
+            picker.SetActive(false);
+            pendingPurpose = null;
+            Rooms.Notify("방 " + pickerRoom + "을(를) " + p.Name + "(으)로 개조했다. (-" + Rooms.PurposeCost.ToString("N0") + "₵)");
             RefreshNow();
         }
 
@@ -254,6 +452,8 @@ namespace ShopExpansion
 
         private void Update()
         {
+            UpdateTankBorder();
+            UpdateFreezerGhost();
             FitScale();
             KeepBehindWindows();
             bool show = InStore();
@@ -340,6 +540,57 @@ namespace ShopExpansion
         }
 
         // 투명한 누름 자리: 마우스를 올리면 살짝 밝아진다
+        // 디버그: 수조 누름 자리에 빨간 테두리 (자리 맞추기용, 다 맞추면 false)
+        private const bool DebugTankBorder = true;
+
+        private static readonly Color BorderIdle = new Color(1f, 0.15f, 0.15f, 1f);   // 빨강: 평소
+        private static readonly Color BorderDrop = new Color(1f, 0.85f, 0.1f, 1f);    // 노랑: 수조에 놓을 수 있는 물건을 끌고 있을 때
+        private List<Image> tankBorder;
+
+        // 끌고 있는 아이템을 수조에 놓을 수 있으면(전자 부품 업그레이드, 필터, 물고기 등) 테두리를 노랗게
+        private void UpdateTankBorder()
+        {
+            if (tankBorder == null || tankSpot == null || !tankSpot.activeInHierarchy) return;
+            bool can = false;
+            try
+            {
+                ItemMouseDragHandler d = ItemMouseDragHandler.current;
+                GameItem item = d != null && d.IsDraggingItem ? d.GetCurrentItem() : null;
+                GameItem tank = item != null ? AquaTank.Get(Rooms.Current) : null;
+                if (tank != null && item != tank)
+                    can = (item.MayTarget(tank) && item.CanTarget(tank))
+                          || (GeneralHelper.MayPlayerInsertInto(tank) && tank.MayHaveValidInventorySlot(item));
+            }
+            catch { can = false; }
+            Color c = can ? BorderDrop : BorderIdle;
+            foreach (Image i in tankBorder) if (i != null && i.color != c) i.color = c;
+        }
+
+        private static List<Image> DebugBorder(RectTransform rt, Color color, float t)
+        {
+            var list = new List<Image>();
+            void Edge(string n, Vector2 aMin, Vector2 aMax, Vector2 size)
+            {
+                var go = new GameObject("DebugBorder_" + n, typeof(RectTransform));
+                go.transform.SetParent(rt, false);
+                var e = (RectTransform)go.transform;
+                e.anchorMin = aMin;
+                e.anchorMax = aMax;
+                e.pivot = new Vector2(0.5f, 0.5f);
+                e.sizeDelta = size;
+                e.anchoredPosition = Vector2.zero;
+                var img = go.AddComponent<Image>();
+                img.color = color;
+                img.raycastTarget = false;
+                list.Add(img);
+            }
+            Edge("Top", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, t));
+            Edge("Bottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, t));
+            Edge("Left", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(t, 0f));
+            Edge("Right", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(t, 0f));
+            return list;
+        }
+
         private static GameObject Hotspot(RectTransform parent, string name, float x, float y, float w, float h, Action click)
         {
             var go = new GameObject(name, typeof(RectTransform));

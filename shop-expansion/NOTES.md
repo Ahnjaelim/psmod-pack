@@ -26,3 +26,30 @@
   - 양식장으로 정하면(Rooms.SetPurpose) 수조를 미리 만들고, 수조의 숨긴 급이기/도축 칸(MachineRAS.GetDispenserSlot/GetButcherSlot)에 꽂는다. 칸의 mayInventoryRemoveItemFunc 를 감싸 FIXED 태그 기계는 못 뺀다. 불러올 때도 Setup 에서 확인.
   - 양식장 바닥(메인 인벤 왼쪽, x150/x330 y60)에 작업대 버튼 2개(게임 아이템 그림) → 누르면 그 기계 창 열기/닫기. 방을 나가면 닫는다.
 - 0.5.0: 수족관 전용 급이기/도축기를 진짜 게임 아이템으로 바닥에: 양식장에 있는 동안 수조 칸에서 꺼내 "작업대" 인벤 창(움직일 수 없음, 1920x1080 기준 왼쪽 위 x150 / 아래에서 y400)에 올려 둔다 → 크기/툴팁/물건 끌어다 넣기/더블클릭 창 열기가 게임 기계와 똑같음. 작업대에는 붙박이 기계만 올라가고 뺄 수 없음. 방을 나갈 때/저장 직전/밤 처리 전에는 수조 칸으로 되돌림(저장 뒤엔 다시 작업대로), 세이브 불러올 때 작업대 비움. 그림 버튼(FittingButton) 제거
+- 0.5.1: 디버그용 수조 누름 자리 빨간 테두리 (RoomPanel.DebugTankBorder = true, 자리 다 맞추면 false).
+- 0.5.2: 작업대 창을 가게 카운터처럼 투명하게 (창 SetTransparency 0.99 + HideBorder, 제목 없음), 격자만 살짝 (GameGridInventory.SetTransparency 0.85 = BenchGridTransparency).
+- 0.6.0: 방 용도 정하기/바꾸기에 개조 비용 20,000₵ (Rooms.PurposeCost, 하이퍼테크 보관함 약 15,000₵보다 비싸게). 고르기 → [개조하기] 두 단계, 같은 용도는 무료로 막음, 돈 부족하면 알림. 용도를 바꿔도 숨김 인벤의 수조/물고기는 남아 있다가 양식장으로 되돌리면 다시 보인다.
+- 0.6.1: 증축 비용 10,000₵ 부터 1.2배씩 (10,000 / 12,000 / 14,400, RoomUpgrades.BaseCost/CostStep). 이미 산 단계는 그대로.
+- 0.6.2: 작업대가 여전히 기계 창 모양이던 것 수정: DirectoryUtils.CreateInventoryWindow(기계 창, 투명도 무시) 대신 손님 테이블처럼 new PixelWindow() + SetTransparency(0.99) + GameGridInventory.SetTransparency(0.85).
+- 0.6.3: 수족관 전용 물탱크 `vse_aqua_water_tank` (ras_water_tank 복사, 용량 60,000ml = 5배, FIXED). 수조 물 칸에 기본 장착 (빈 채로, 게임 양식 기계가 빈 물탱크와 함께 팔리는 것과 같음). 물 칸이 이미 차 있으면(예전에 넣은 게임 물탱크) 그대로 둔다. 물 칸은 게임이 원래 빼기를 막는다.
+- 0.6.4: 대형 수조 필터 8칸. 필터 GridPixelElement(4x1 고정 배열)를 Traverse 로 4x2 로 늘리고 새 칸 4개(원래 칸 규칙 복사)를 붙이고, 밤 처리 TickTank 가 쓰는 필터 목록(onCycleEndSlotItemFunc 클로저의 filterSlots)에도 추가. 구조가 달라 세이브 호환을 위해 수조를 정식 아이템 `vse_aqua_tank`(CreateRAS + AquaTank.Structure)로 등록. 예전 `ras` 수조는 불러올 때/열 때 새 수조로 내용물을 옮겨 담고 바꿈(Migrate).
+- 0.6.5: 대형 수조 전력 4 → 100/일. 사용자 기준 "풀업" = 수조 확장 풀업(12x8)·효율 업그레이드 없음 = 25/일, 그 4대분.
+- 0.6.6: 방의 수조 자리에 마우스를 올리면 대형 수조 기계의 게임 툴팁 (TankTooltip.cs: ItemTooltipHandler.OnEventUpdate Postfix, 게임이 다른 아이템 툴팁을 안 띄웠을 때만, Shift 자세히 보기 포함).
+- 0.6.7: 대형 수조 툴팁에서 저장 공간(고철/금속 주괴) 업그레이드 줄 제거, 효율 줄만 (MachineRAS.CreateTooltip Prefix, 나머지 줄은 게임 코드 그대로 복사).
+- 0.6.8: 방의 수조 자리에 아이템을 끌어다 놓으면 대형 수조 기계 위에 놓은 것으로 처리 (TankDrop.cs: ItemMouseDragHandler.EndDrag Prefix, 게임이 놓을 곳을 못 찾았고 열린 창 위가 아닐 때 lastItem = 수조). 전자 부품 → 게임 효율 업그레이드(최대 12). 전력 = max(4, 100 - 8 x 효율). 필터/물고기 등도 같은 방식으로 들어간다.
+- 0.6.9: 디버그 수조 테두리: 수조에 놓을 수 있는 아이템(전자 부품 업그레이드, 필터, 물고기 등)을 끌고 있으면 노랑, 평소 빨강 (RoomPanel.UpdateTankBorder, MayTarget/CanTarget 또는 MayHaveValidInventorySlot).
+- 0.7.0: 대형 수조 이름 "대형 순환 여과 양식조" (AquaTank.DisplayName). 수조 창 제목줄이 비어 있던 것도 이 이름으로 (SetTitle, 창을 직접 Show 해서 게임이 제목을 안 넣었음).
+- 0.7.1: 양식장 배경 유리 수조 안에서 대형 수조의 물고기가 헤엄친다 (FishSwim.cs, 덮개 안 수조 자리 아래 층). 그림 = 아이템 게임 그림, 크기 = 칸 수 x UISettings.gridSize x 캔버스 배율(수조 창과 같음). 알/치어/치어 무리 제외. 종류별 속도(틸라피아 70, 장어 45 + 꿈틀, 철갑상어 28), 가끔 멈칫, 방향 바꾸면 좌우 뒤집기. 죽은 물고기는 뒤집혀 위로 떠오름. 0.5초마다 수조 내용과 맞춤.
+- 0.7.2: 수조 물방울 (FishSwim): 바닥 4곳에서 0.15~0.5초마다 1개씩 올라오고(8~16 단위, 좌우로 살랑), 물고기 입에서도 가끔(살아 있는 물고기, 초당 약 15%). 수면 근처 40 단위에서 흐려져 사라짐. 최대 60개, 물고기 뒤에 그림. 그림 = 코드로 만든 9x9 픽셀 동그라미.
+- 0.7.3: 물고기 공기원근법: 물고기마다 깊이(0 앞 ~ 1 뒤, 무작위), 색 = 흰색→물빛(0.45,0.72,0.92) 최대 65% 섞음, 알파 1→0.8. 뒤에 있는 물고기를 먼저 그림(SetSiblingIndex). 물방울 층은 맨 뒤.
+- 0.8.0: 개조한 방은 용도 변경 불가, [폐쇄]만 (머리말 버튼: 빈 방 [개조] / 개조된 방 [폐쇄]). 폐쇄 = 확인 창 → 그 용도의 붙박이 기계와 안의 모든 아이템 삭제(양식장: AquaTank.Dismantle → 작업대 기계 되돌린 뒤 HiddenStore.Delete, 모드 데이터 hidden/<key> 도 삭제) + 빈 방. 폐쇄 후 다시 개조(비용 동일). 빈 방 고르기 창은 방에 들어올 때 한 번만 자동으로 뜸 (닫으면 0.5초마다 다시 뜨던 것 수정).
+- 0.8.1: 수조 기계 툴팁 잠시 끔(TankTooltipPatch.ShowTankTooltip = false). 대신 배경에서 헤엄치는 물고기 위에 마우스를 올리면 그 물고기 아이템의 게임 툴팁 (FishSwim.FishAt: 물고기 그림 사각형 안, 겹치면 앞 물고기).
+- 0.8.2: 대형 수조 기계 툴팁 내용을 배경 유리에 흰 글씨로 (FishSwim.UpdateGlassText: GetTooltip().nakedText, 수조 왼쪽 위 22 여백, 폭 460, 15pt, 알파 0.85, 물고기 앞, 0.5초마다).
+- 0.8.3: 유리 글씨에서 태그/가격(칸당 가치, 기본가, 고정됨 등) 제거: 이름 줄만 남기고 첫 빈 줄까지 버림 (FishSwim.StripHeader).
+- 0.8.4: 유리 글씨에 <color>/<b>/<i> 태그가 그대로 보이던 것 수정 (nakedText 에도 서식 태그가 있음 → 정규식으로 제거). 맨 끝 모드 출처 줄("가게 증축")도 뺌.
+- 0.8.5: 유리 글씨에서 기계 설명(shortDescription) 줄 제거 (FishSwim.StripDescription: 설명 첫 부분과 같은 줄부터 끝까지 버림).
+- 0.8.6: 유리 글씨에서 이름 줄도 뺌 (머리 부분 전부 제거, 앞 빈 줄 TrimStart).
+- 0.8.7: 유리 글씨를 툴팁 잘라 쓰기 대신 수조 상태를 직접 읽어 적기 (FishSwim.GlassLines): 필요 에너지 / 전기뱀장어 : 매일 NkJ 생성 중(있을 때만) / 물·필요량 / 오염도 / 개체(생존, 죽음) / 업그레이드 효율 n/12. 태그·가격·이름·설명 없음.
+- 0.8.8: 유리 글씨 빈 줄 없이 붙임.
+- 0.9.0: 양식장 "내 테이블" (RoomTable.cs): 정식 아이템 `vse_room_table`(투명 창 + 흐린 18x4 격자 보관함)을 숨김 인벤 room<n>/table 에 두고, 방에 있는 동안 화면 가운데·위에서 560(1080 기준, 메인 인벤 바로 위)에 띄움. 물건 저장/밤 처리는 숨김 인벤 그대로. 방을 나가면 숨김, 폐쇄하면 위 물건과 함께 삭제. 철갑상어 알 꺼내기 수술 등 (알 병은 물고기가 있는 인벤에 생김).
+- 0.9.1: 양식장 오른쪽 작업면 = 냉동고 거치대 (Freezers.cs). 냉동고 `vse_aqua_freezer` = 하이퍼테크 보관함 복제(탭 없이 16x30 한 칸, 기계 창), 그림 = 게임 냉장고(Items/items_ship fridge), 생선 부속물 10종만(large/fish/small/tiny_fish_fillet, eel/small_eel_fillet, fish_scrap, tilapia_skin_graft, caviar, sturgeon_roe; 다른 모드 아이템 제외), 냉장 기능 없음. 거치대 `vse_freezer_rack` = 투명 창 + 흐린 격자(냉동고 칸 x 5 세로), 냉동고만 올라가고 못 뺌, 숨김 인벤 room<n>/freezer-rack. 개조 시 1개, 다음 자리 빈칸(RoomPanel 냉동고 추가 자리) 클릭 → 확인 창 → 5,000/7,500/11,250/16,875₵. 폐쇄 시 삭제. 확인 창은 폐쇄/냉동고 추가 공용(AskConfirm). 거치대 위치 1920x1080 기준 왼쪽 위 (1500, 130).

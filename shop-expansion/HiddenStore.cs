@@ -56,6 +56,35 @@ namespace ShopExpansion
             return item;
         }
 
+        // 이름표의 기계와 그 안의 모든 아이템을 지우고 저장도 지운다 (방 폐쇄)
+        internal static void Delete(string key)
+        {
+            if (holders.TryGetValue(key, out Holder h))
+            {
+                foreach (GameItem i in new List<GameItem>(h.Inv.childItems))
+                {
+                    try { i.contentWindow?.Hide(); } catch { }
+                    try { h.Inv.Expel(i); i.Destroy(); } catch (Exception ex) { Debug.LogWarning("[ShopExpansion] hidden store delete " + key + ": " + ex.Message); }
+                }
+            }
+            ModHelper.RemoveModData(ShopExpansionMod.ModId, Prefix + key);
+        }
+
+        // 이름표의 기계를 새 기계로 바꾼다 (옛 기계는 지운다. 내용물은 부르는 쪽에서 먼저 옮겨 둘 것)
+        internal static void Replace(string key, GameItem old, GameItem neu)
+        {
+            Holder h = Get(key);
+            if (old != null && h.Inv.childItems.Contains(old))
+            {
+                try { old.contentWindow?.Hide(); } catch { }
+                h.Inv.Expel(old);
+                old.Destroy();
+            }
+            neu.EnableTag("IS_OWNED_TAG");
+            h.Inv.TryAcceptAll(neu);
+            if (!h.Inv.childItems.Contains(neu)) Debug.LogWarning("[ShopExpansion] hidden store '" + key + "': replacement did not fit");
+        }
+
         // 숨김 인벤의 기계들 (맨 위 단계만)
         internal static IEnumerable<GameItem> Machines()
         {

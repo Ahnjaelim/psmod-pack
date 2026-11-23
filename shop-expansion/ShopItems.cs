@@ -12,6 +12,14 @@ namespace ShopExpansion
     {
         internal const string AquaFeeder = "vse_aqua_feeder";
         internal const string AquaButcher = "vse_aqua_butcher";
+        internal const string AquaWaterTank = "vse_aqua_water_tank";
+        // 대형 수조 = 게임 양식 기계(ras) + 크기/필터 8칸 구조. 구조가 달라 세이브에서 같은 모양으로 다시 만들려면 자기 id 가 필요하다 (0.6.4)
+        internal const string AquaTank = "vse_aqua_tank";
+        internal const string RoomTable = "vse_room_table"; // 방 앞 내 테이블 (18x4 투명 격자, RoomTable.cs)
+        internal const string AquaFreezer = "vse_aqua_freezer"; // 냉동고 (하이퍼테크 보관함 복제, 생선 부속물만, Freezers.cs)
+        internal const string FreezerRack = "vse_freezer_rack"; // 오른쪽 작업면: 냉동고 거치대 (Freezers.cs)
+        // 수조가 풀업 양식 기계 5대분이라 물탱크도 게임 것(12,000ml)의 5배
+        internal const int AquaWaterTankMl = 60000;
         internal const string FixedTag = "VSE_FIXED_FITTING_TAG";
 
         private static GameObject host;
@@ -29,6 +37,11 @@ namespace ShopExpansion
         {
             Add(AquaFeeder, CreateAquaFeeder);
             Add(AquaButcher, CreateAquaButcher);
+            Add(AquaWaterTank, CreateAquaWaterTank);
+            Add(AquaTank, CreateAquaTank);
+            Add(RoomTable, ShopExpansion.RoomTable.Create);
+            Add(AquaFreezer, Freezers.CreateFreezer);
+            Add(FreezerRack, Freezers.CreateRack);
         }
 
         private static GameItem CreateAquaFeeder()
@@ -43,6 +56,23 @@ namespace ShopExpansion
         {
             GameItem m = MachineAutoButcher.CreateAutoButcher();
             m.name = "수족관 전용 도축기";
+            m.EnableTag(FixedTag);
+            return m;
+        }
+
+        private static GameItem CreateAquaTank()
+        {
+            GameItem m = MachineRAS.CreateRAS();
+            ShopExpansion.AquaTank.Structure(m);
+            return m;
+        }
+
+        // 수족관 전용 물탱크 = 게임 RAS 물탱크(ras_water_tank) 복사, 용량만 키움 (빈 채로 꽂힌다, 게임 양식 기계와 같음)
+        private static GameItem CreateAquaWaterTank()
+        {
+            GameItem m = MachineRAS.CreateWaterTank();
+            m.name = "수족관 전용 물탱크";
+            m.ModifyTag("LIQUID_CONTAINER_CAPACITY", s => s.Enable().SetInt(AquaWaterTankMl * 1000)); // 게임 단위: ml x 1000
             m.EnableTag(FixedTag);
             return m;
         }

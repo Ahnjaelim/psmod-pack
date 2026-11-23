@@ -65,6 +65,44 @@ namespace ShopExpansion
             if (Current == room) ShowBackground(room);
         }
 
+        // 방 개조(용도 정하기/바꾸기) 비용. 하이퍼테크 보관함(약 15,000₵)보다 비싸게 (사용자 요청, 0.6.0)
+        internal const int PurposeCost = 20000;
+
+        // 돈을 내고 용도를 정한다. 성공하면 true
+        internal static bool TryBuyPurpose(int room, RoomPurpose p)
+        {
+            if (p == null) return false;
+            RoomPurpose cur = Purpose(room);
+            // 한 번 개조한 방은 용도를 바꿀 수 없다. 폐쇄(빈 방) 후 다시 개조 (0.8.0)
+            if (cur != null) { Notify("이미 " + cur.Name + "(으)로 개조된 방이다. 바꾸려면 먼저 폐쇄하자."); return false; }
+            int cash = PlayerStore.Instance != null ? PlayerStore.Instance.playerCash : 0;
+            if (cash < PurposeCost)
+            {
+                Notify("개조 비용이 부족하다. (필요 " + PurposeCost.ToString("N0") + "₵, 소지 " + cash.ToString("N0") + "₵)");
+                return false;
+            }
+            ModHelper.AddCredit(-PurposeCost);
+            SetPurpose(room, p);
+            return true;
+        }
+
+        // 방 폐쇄: 그 용도의 붙박이 기계와 안의 모든 아이템을 없애고 빈 방으로
+        internal static void CloseRoom(int room)
+        {
+            RoomPurpose cur = Purpose(room);
+            if (cur == null) return;
+            try
+            {
+                if (cur.Key == "aquaculture") AquaTank.Dismantle(room);
+                RoomTable.Delete(room); // 테이블 위 물건도 같이 사라진다
+                Freezers.Delete(room);  // 냉동고와 안의 물건도
+            }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] close room " + room + ": " + ex); }
+            SetPurpose(room, null);
+            Notify("방 " + room + "(" + cur.Name + ")을(를) 폐쇄했다. 빈 방이 되었다.");
+            try { AudioManager.Instance.Play2("close_door"); } catch { }
+        }
+
         internal static string RoomName(int room)
         {
             RoomPurpose p = Purpose(room);
@@ -114,6 +152,8 @@ namespace ShopExpansion
             if (Current == 0) return;
             Current = 0;
             AquaTank.CloseAll();
+            RoomTable.HideAll();
+            Freezers.HideAll();
             RoomPanel.SetCover(null);
             RestoreShop();
             RoomPanel.Refresh();
@@ -262,6 +302,15 @@ namespace ShopExpansion
                 else AquaTank.StowBench();
             }
             catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench: " + ex.Message); }
+            // 내 테이블 (가게 카운터처럼 물건 올려 두는 곳)
+            try
+            {
+                if (RoomTable.UsedBy(p)) RoomTable.Show(room);
+                else RoomTable.HideAll();
+                if (Freezers.UsedBy(p)) Freezers.Show(room); // 오른쪽 작업면: 냉동고 거치대
+                else Freezers.HideAll();
+            }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] table: " + ex.Message); }
             LogCanvasesOnce();
         }
 
