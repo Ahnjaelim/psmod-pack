@@ -18,7 +18,7 @@ namespace ShopExpansion
     internal class FishSwim : MonoBehaviour
     {
         // 그릴 영역: 배경 유리 수조 (RoomPanel 수조 자리와 같은 곳, 1920x1080 기준 아래 왼쪽 원점)
-        internal Rect Area = new Rect(435f, 370f, 1027f, 443f);
+        internal Rect Area = new Rect(310f, 255f, 1260f, 745f);
         private const float Margin = 12f;
 
         private class Swimmer

@@ -80,7 +80,7 @@ namespace ShopExpansion
                 flr.anchoredPosition = Vector2.zero;
                 flr.sizeDelta = new Vector2(1920f, 1080f);
                 fishLayer.AddComponent<FishSwim>();
-                tankSpot = Hotspot(coverRt, "TankSpot", 435f, 370f, 1027f, 443f, () => AquaTank.Toggle(Rooms.Current));
+                tankSpot = Hotspot(coverRt, "TankSpot", 310f, 255f, 1260f, 745f, () => AquaTank.Toggle(Rooms.Current));
                 tankSpot.AddComponent<TankHover>(); // 마우스를 올리면 대형 수조 툴팁 (TankTooltip.cs)
                 if (DebugTankBorder) tankBorder = DebugBorder((RectTransform)tankSpot.transform, BorderIdle, 3f);
                 // 양식장 작업대: 수족관 전용 급이기 / 도축기 (메인 인벤 왼쪽 바닥)
