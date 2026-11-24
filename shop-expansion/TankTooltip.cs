@@ -24,7 +24,22 @@ namespace ShopExpansion
 
         private static void Postfix(ItemTooltipHandler __instance)
         {
-            if (!TankHover.Over || !Rooms.InRoom || UIDragHandler.isDraggingAnyUI) return;
+            if (!Rooms.InRoom || UIDragHandler.isDraggingAnyUI) return;
+            // 기계 그림(급이기/도축기/냉동고) 위: 그 기계의 게임 툴팁 (0.10.0)
+            try
+            {
+                if (!TankHover.Over && MachineSpot.At(Input.mousePosition) is TooltipListener m && m.HasTooltip()
+                    && Traverse.Create(__instance).Field("currentTooltipListener").GetValue() == null
+                    && !TankDropPatch.OverAnyWindow(Input.mousePosition))
+                {
+                    bool adv = Traverse.Create(__instance).Field("advanced").GetValue() is bool ab && ab;
+                    OverlayHandler.current.ShowTooltip(Input.mousePosition, __instance.tooltipTranslation,
+                        adv ? m.GetTooltipAdvanced() : m.GetTooltip(), 72);
+                    return;
+                }
+            }
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] machine tooltip: " + ex.Message); }
+            if (!TankHover.Over) return;
             try
             {
                 if (Traverse.Create(__instance).Field("currentTooltipListener").GetValue() != null) return; // 게임이 다른 아이템 툴팁을 띄움

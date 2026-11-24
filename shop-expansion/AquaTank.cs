@@ -330,7 +330,15 @@ namespace ShopExpansion
         internal static void BeforeSave() { savedBenchRoom = benchRoom; StowBench(); }
         internal static void AfterSave() { if (savedBenchRoom > 0 && Rooms.Current == savedBenchRoom) ShowBench(savedBenchRoom); savedBenchRoom = -1; }
 
-        // 작업대의 급이기/도축기를 누르면: 그 기계 창 열기 / 다시 누르면 닫기
+        // 수조 칸에 꽂힌 급이기/도축기 (배경 위 그림이 가리키는 기계, 없으면 null)
+        internal static GameItem Fitting(int room, bool feeder)
+        {
+            GameItem m = Get(room);
+            if (m == null) return null;
+            return feeder ? MachineRAS.GetDispenserSlot(m)?.childItem : MachineRAS.GetButcherSlot(m)?.childItem;
+        }
+
+        // 배경 위 급이기/도축기 그림을 누르면: 그 기계 창 열기 / 다시 누르면 닫기
         internal static void ToggleFitting(int room, bool feeder)
         {
             GameItem m = Ensure(room);

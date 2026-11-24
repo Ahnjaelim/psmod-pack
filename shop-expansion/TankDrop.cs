@@ -19,10 +19,11 @@ namespace ShopExpansion
                 var t = Traverse.Create(__instance);
                 if (t.Field("lastItem").GetValue() != null || t.Field("lastInventory").GetValue() != null) return;
                 Vector2 mouse = Input.mousePosition;
-                if (!RoomPanel.IsOverTankSpot(mouse) || OverAnyWindow(mouse)) return;
-                GameItem tank = AquaTank.Get(Rooms.Current);
-                if (tank == null) return;
-                t.Field("lastItem").SetValue(tank);
+                if (OverAnyWindow(mouse)) return;
+                // 수조 자리 → 대형 수조, 기계 그림(급이기/도축기/냉동고) → 그 기계
+                GameItem target = RoomPanel.IsOverTankSpot(mouse) ? AquaTank.Get(Rooms.Current) : MachineSpot.At(mouse);
+                if (target == null || target == __instance.GetCurrentItem()) return;
+                t.Field("lastItem").SetValue(target);
             }
             catch (Exception ex)
             {
@@ -31,7 +32,7 @@ namespace ShopExpansion
         }
 
         // 수조 자리 위에 열린 창(수조 창 등)이 있으면 그 창에 놓은 것 → 우리가 가로채지 않는다
-        private static bool OverAnyWindow(Vector2 mouse)
+        internal static bool OverAnyWindow(Vector2 mouse)
         {
             if (WindowsHandler.current?.visibleWindows == null) return false;
             foreach (PixelWindow w in WindowsHandler.current.visibleWindows)

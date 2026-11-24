@@ -99,14 +99,46 @@ namespace ShopExpansion
             }
             catch (Exception ex) { Debug.LogWarning("[ShopExpansion] close room " + room + ": " + ex); }
             SetPurpose(room, null);
+            SetCustomName(room, null); // 폐쇄하면 붙인 이름도 지운다 (다시 개조하면 새 용도 이름)
             Notify("방 " + room + "(" + cur.Name + ")을(를) 폐쇄했다. 빈 방이 되었다.");
             try { AudioManager.Instance.Play2("close_door"); } catch { }
         }
 
+        // 방 이름: 사용자가 붙인 이름 → 용도 이름 → "빈 방"
         internal static string RoomName(int room)
         {
+            string custom = CustomName(room);
+            if (!string.IsNullOrEmpty(custom)) return custom;
             RoomPurpose p = Purpose(room);
             return p != null ? p.Name : "빈 방";
+        }
+
+        // ---- 방 이름 바꾸기 (0.10.8): 세이브의 모드 데이터 room/<n>/name ----
+        internal const int NameMaxLength = 12;
+
+        internal static string CustomName(int room)
+        {
+            try { return (ModHelper.GetModData(ShopExpansionMod.ModId, "room/" + room + "/name", "") ?? "").Trim(); }
+            catch { return ""; }
+        }
+
+        internal static void SetCustomName(int room, string name)
+        {
+            name = (name ?? "").Replace("\n", " ").Trim();
+            if (name.Length > NameMaxLength) name = name.Substring(0, NameMaxLength);
+            if (name.Length == 0) ModHelper.RemoveModData(ShopExpansionMod.ModId, "room/" + room + "/name");
+            else ModHelper.SetModData(ShopExpansionMod.ModId, "room/" + room + "/name", name);
+        }
+
+        // 게임의 이름 붙이기 창(보관함 탭 이름 바꾸기와 같은 창). 확인 = 그 이름, 초기화 = 용도 이름으로
+        internal static void OpenRename(int room, Action changed)
+        {
+            if (room <= 0) return;
+            if (LabelerBlueUIManager.Instance == null) { Notify("이름 바꾸기 창을 열 수 없다."); return; }
+            LabelerBlueUIManager.Instance.OpenUI(CustomName(room),
+                text => { SetCustomName(room, text); changed?.Invoke(); },
+                () => { SetCustomName(room, null); changed?.Invoke(); },
+                NameMaxLength);
         }
 
         // ---- 이동 ----
@@ -295,12 +327,9 @@ namespace ShopExpansion
                 sprites[tex] = sp;
             }
             RoomPanel.SetCover(sp);
-            // 양식장: 급이기/도축기를 작업대(바닥 인벤 창)에 꺼낸다. 다른 용도면 되돌린다
-            try
-            {
-                if (p != null && p.Key == "aquaculture") AquaTank.ShowBench(room);
-                else AquaTank.StowBench();
-            }
+            // 급이기/도축기는 0.10.0 부터 배경 위 그림(RoomPanel, MachineSpot)으로만 보이고 기계는 수조 칸에 그대로 둔다.
+            // 예전(작업대 창) 방식으로 꺼내 둔 게 있으면 수조로 되돌린다
+            try { AquaTank.StowBench(); }
             catch (Exception ex) { Debug.LogWarning("[ShopExpansion] bench: " + ex.Message); }
             // 내 테이블 (가게 카운터처럼 물건 올려 두는 곳)
             try

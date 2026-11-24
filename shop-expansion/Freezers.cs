@@ -8,7 +8,7 @@ namespace ShopExpansion
     //  - 냉동고 = 정식 아이템 vse_aqua_freezer: 하이퍼테크 보관함 복제(탭 없이 16x30 한 칸), 그림은 게임 냉장고(Items/items_ship fridge).
     //    생선 부속물(게임 원래 아이템 10종)만 들어간다. 생선살은 원래 안 상하므로 냉장 기능은 없음(이름만 냉동고).
     //  - 거치대 = 정식 아이템 vse_freezer_rack: 투명 창 + 흐린 격자(냉동고 1칸 크기 x 5 세로). 냉동고만 올라가고 뺄 수 없다.
-    //    숨김 인벤(room<n>/freezer-rack)에 두어 저장/밤 처리. 방에 있는 동안 오른쪽에 창을 띄운다 (작업 테이블과 같은 방식).
+    //    숨김 인벤(room<n>/freezer-rack)에 두어 저장/밤 처리. 0.10.0 부터 창은 안 띄우고 배경 위 냉동고 그림(RoomPanel)으로 보여 준다.
     //  - 개조 때 1개 기본, 다음 자리(점선 빈칸)를 눌러 추가: 5,000 / 7,500 / 11,250 / 16,875₵. 최대 5개.
     //  - 방 폐쇄 시 거치대와 냉동고, 안의 물건 모두 삭제.
     internal static class Freezers
@@ -24,9 +24,6 @@ namespace ShopExpansion
             "eel_fillet", "small_eel_fillet", "fish_scrap", "tilapia_skin_graft",
             "caviar", "sturgeon_roe",
         };
-
-        // 거치대 위치 (1920x1080 기준): 왼쪽 위 모서리
-        private const float RackLeft = 1500f, RackTop = 130f;
 
         private static string Key(int room) => "room" + room + "/freezer-rack";
 
@@ -137,26 +134,40 @@ namespace ShopExpansion
             return true;
         }
 
-        private static PixelWindow shown;
-
+        // 방에 들어올 때: 거치대/냉동고만 준비한다. 거치대 창은 띄우지 않고 배경 위 냉동고 그림(RoomPanel)으로 보여 준다 (0.10.0)
         internal static void Show(int room)
         {
             HideAll();
             Ensure(room);
-            PixelWindow w = Rack(room)?.contentWindow;
+        }
+
+        // room 의 index 번째 냉동고 (없으면 null)
+        internal static GameItem At(int room, int index)
+        {
+            GameInventory g = RackGrid(HiddenStore.Find(Key(room)));
+            if (g == null) return null;
+            int n = 0;
+            foreach (GameItem i in g.childItems)
+                if (i.identifier == ShopItems.AquaFreezer && n++ == index) return i;
+            return null;
+        }
+
+        // 냉동고 그림을 누르면: 그 냉동고 창 열기 / 다시 누르면 닫기
+        internal static void Toggle(int room, int index)
+        {
+            PixelWindow w = At(room, index)?.contentWindow;
             if (w == null) return;
-            try
-            {
-                w.Show(new Vector2(Screen.width * RackLeft / 1920f, Screen.height - Screen.height * RackTop / 1080f));
-                shown = w;
-            }
-            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] freezer rack show: " + ex.Message); }
+            try { AudioManager.Instance.Play2("click_vintage"); } catch { }
+            if (w.IsVisible()) { w.Hide(); return; }
+            w.Show();
+            w.Center();
         }
 
         internal static void HideAll()
         {
-            try { if (shown != null && shown.IsVisible()) shown.Hide(); } catch { }
-            shown = null;
+            // 예전(0.9.x) 거치대 창이 떠 있으면 닫는다
+            foreach (string k in new[] { Key(1), Key(2), Key(3) })
+                try { PixelWindow rw = HiddenStore.Find(k)?.contentWindow; if (rw != null && rw.IsVisible()) rw.Hide(); } catch { }
             // 열려 있던 냉동고 창도 닫는다
             foreach (string k in new[] { Key(1), Key(2), Key(3) })
             {
@@ -171,26 +182,6 @@ namespace ShopExpansion
         {
             HideAll();
             HiddenStore.Delete(Key(room));
-        }
-
-        // 다음 냉동고가 놓일 자리 (화면 픽셀, 왼쪽 아래 원점). 다 찼거나 거치대가 안 보이면 null
-        internal static Rect? NextSlotScreenRect(int room)
-        {
-            if (shown == null || !shown.IsVisible()) return null;
-            int n = Count(room);
-            if (n >= Max) return null;
-            Vector2Int s = FreezerShape();
-            float sf = 1f, cell = 16f;
-            try { sf = RenderHandler.current.windowUICanvas.scaleFactor; } catch { }
-            try { cell = UISettings.current.gridSize; } catch { }
-            float c = cell * sf;
-            // 거치대 격자 왼쪽 위 = 창 내용 영역 왼쪽 위 (투명 창은 여백이 거의 없다)
-            Vector3[] corners = new Vector3[4];
-            RectTransform inner = (shown.childElement as GameInventory) is PixelElement pe && pe.handler != null ? pe.handler.rectTransform : shown.rectTransform;
-            inner.GetWorldCorners(corners); // 0 왼쪽 아래, 1 왼쪽 위
-            Vector2 topLeft = RectTransformUtility.WorldToScreenPoint(null, corners[1]);
-            float w = s.x * c, h = s.y * c;
-            return new Rect(topLeft.x, topLeft.y - (n + 1) * h, w, h);
         }
     }
 }
