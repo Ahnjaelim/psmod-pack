@@ -3,7 +3,7 @@
   <ID>shop-expansion</ID>
   <Name>가게 증축</Name>
   <Author>me</Author>
-  <ModVersion>0.10.9</ModVersion>
+  <ModVersion>0.11.0</ModVersion>
   <Description>Shop expansion: buy up to 3 side rooms (Wild network, Advanced tab), pick a use for each, switch rooms from the shop screen.</Description>
   <Assemblies>
     <Assembly>ShopExpansion.dll</Assembly>

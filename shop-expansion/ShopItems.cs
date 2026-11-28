@@ -58,6 +58,8 @@ namespace ShopExpansion
             m.name = "수족관 전용 도축기";
             m.EnableTag(FixedTag);
             DropCageTab(m);
+            try { ShopExpansion.AquaButcher.BuildPage(m); } // 수조 탭 → "틸라피아" 물 관리 탭 (0.11.0)
+            catch (Exception ex) { Debug.LogWarning("[ShopExpansion] aqua butcher page: " + ex.Message); }
             return m;
         }
 
